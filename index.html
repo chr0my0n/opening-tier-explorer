@@ -1,0 +1,2715 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>Opening Tier Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0a;
+  --bg-2: #141414;
+  --bg-3: #1f1f1f;
+  --line: #2a2a2a;
+  --text: #ededed;
+  --text-dim: #888;
+  --text-mute: #555;
+  --tier-t1: #ff2d87;   /* 1티어 사기 - 핫핑크 */
+  --tier-t2: #f5b800;   /* 2티어 꿀 - 노랑 */
+  --tier-t3: #7dd3a0;   /* 3티어 좋음 - 민트 */
+  --tier-t4: #9ca3af;   /* 4티어 평범 - 밝은 회색 */
+  --tier-t5: #d97706;   /* 5티어 구림 - 주황 */
+  --tier-t6: #991b1b;   /* 6티어 쓰레기 - 진빨강 */
+  /* 기존 코드 호환성 alias */
+  --tier-broken: var(--tier-t1);
+  --tier-honey:  var(--tier-t2);
+  --tier-mid:    var(--tier-t4);
+  --tier-bad:    var(--tier-t5);
+  --tier-trash:  var(--tier-t6);
+  --board-light: #c9bda0;
+  --board-dark: #5a5142;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--bg); color: var(--text); }
+body {
+  font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 1;
+}
+.mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.app {
+  display: grid;
+  grid-template-columns: 290px 1fr 400px;
+  grid-template-areas: "sidebar center right";
+  gap: 1px;
+  background: var(--line);
+  min-height: 100vh;
+}
+.app.mode-tierlist {
+  grid-template-columns: 290px 1fr;
+  grid-template-areas: "sidebar tierlist";
+}
+.app > * { background: var(--bg); }
+.sidebar { grid-area: sidebar; }
+.center { grid-area: center; }
+.right { grid-area: right; }
+.tierlist-screen { grid-area: tierlist; }
+
+aside, main { min-width: 0; }
+
+/* Mode tabs */
+.mode-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 22px;
+  border: 1px solid var(--line);
+}
+.mode-tab {
+  flex: 1;
+  background: var(--bg-2);
+  border: none;
+  color: var(--text-dim);
+  padding: 10px 8px;
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transition: all 0.12s;
+}
+.mode-tab.active { background: var(--text); color: var(--bg); }
+.mode-tab:hover:not(.active) { color: var(--text); }
+
+/* Tierlist screen */
+.tierlist-screen {
+  padding: 28px 32px;
+  max-width: 100%;
+}
+
+.tl-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.tl-title {
+  font-family: 'Gowun Batang', 'Instrument Serif', serif;
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+.tl-subtitle {
+  font-size: 11px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  margin-bottom: 24px;
+  font-weight: 500;
+}
+
+.tl-controls {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+  align-items: center;
+}
+.tl-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tl-control-label {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  font-weight: 600;
+}
+.tl-fetch-btn {
+  background: var(--tier-honey);
+  color: #1a1a1a;
+  border: none;
+  padding: 11px 24px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+  transition: all 0.12s;
+  margin-left: auto;
+}
+.tl-fetch-btn:hover { background: #ffd23f; }
+.tl-fetch-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.tl-progress {
+  margin: 18px 0;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 500;
+}
+.tl-progress-bar {
+  height: 3px;
+  background: var(--line);
+  margin-top: 8px;
+  overflow: hidden;
+}
+.tl-progress-bar > div {
+  height: 100%;
+  background: var(--tier-honey);
+  transition: width 0.2s;
+  width: 0;
+}
+
+.tier-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 1px;
+  background: var(--line);
+  margin-bottom: 1px;
+  min-height: 100px;
+}
+.tier-row > * { background: var(--bg); }
+.tier-label-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 14px;
+  text-align: center;
+  position: relative;
+}
+.tier-label-cell::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+}
+.tier-label-cell.tier-t1::before { background: var(--tier-t1); }
+.tier-label-cell.tier-t2::before { background: var(--tier-t2); }
+.tier-label-cell.tier-t3::before { background: var(--tier-t3); }
+.tier-label-cell.tier-t4::before { background: var(--tier-t4); }
+.tier-label-cell.tier-t5::before { background: var(--tier-t5); }
+.tier-label-cell.tier-t6::before { background: var(--tier-t6); }
+.tier-label-cell.tier-na::before { background: var(--text-mute); }
+
+.tier-label-cell .tl-name {
+  font-family: 'Gowun Batang', 'Instrument Serif', serif;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.5px;
+}
+.tier-label-cell .tl-thresh {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text-mute);
+  margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.tier-label-cell .tl-count {
+  font-size: 10px;
+  color: var(--text-mute);
+  margin-top: 4px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+.tier-label-cell.tier-t1 .tl-name { color: var(--tier-t1); }
+.tier-label-cell.tier-t2 .tl-name { color: var(--tier-t2); }
+.tier-label-cell.tier-t3 .tl-name { color: var(--tier-t3); }
+.tier-label-cell.tier-t4 .tl-name { color: var(--text); }
+.tier-label-cell.tier-t5 .tl-name { color: var(--tier-t5); }
+.tier-label-cell.tier-t6 .tl-name { color: var(--tier-t6); }
+.tier-label-cell.tier-na .tl-name { color: var(--text-mute); font-size: 22px; }
+
+.tier-cards {
+  padding: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-content: flex-start;
+}
+.tier-card {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  padding: 11px 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 170px;
+  max-width: 240px;
+  position: relative;
+  overflow: hidden;
+}
+.tier-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  width: 0;
+  background: var(--tier-honey);
+  transition: width 0.2s;
+}
+.tier-card.tier-t1::after { background: var(--tier-t1); }
+.tier-card.tier-t2::after { background: var(--tier-t2); }
+.tier-card.tier-t3::after { background: var(--tier-t3); }
+.tier-card.tier-t4::after { background: var(--tier-t4); }
+.tier-card.tier-t5::after { background: var(--tier-t5); }
+.tier-card.tier-t6::after { background: var(--tier-t6); }
+.tier-card:hover { border-color: var(--text-dim); transform: translateY(-2px); background: var(--bg-3); }
+.tier-card:hover::after { width: 100%; }
+
+.tier-card .tc-ko {
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.3;
+  font-size: 13px;
+}
+.tier-card .tc-meta {
+  font-size: 10px;
+  color: var(--text-mute);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+.tier-card .tc-bar {
+  height: 4px;
+  display: flex;
+  margin-top: 4px;
+  background: #000;
+}
+.tier-card .tc-bar .w-seg { background: #f5f5f5; }
+.tier-card .tc-bar .d-seg { background: var(--text-mute); }
+.tier-card .tc-bar .b-seg { background: #1a1a1a; }
+.tier-card .tc-pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 11px;
+}
+.tier-card.tier-t1 .tc-pct { color: var(--tier-t1); }
+.tier-card.tier-t2 .tc-pct { color: var(--tier-t2); }
+.tier-card.tier-t3 .tc-pct { color: var(--tier-t3); }
+.tier-card.tier-t4 .tc-pct { color: var(--text-dim); }
+.tier-card.tier-t5 .tc-pct { color: var(--tier-t5); }
+.tier-card.tier-t6 .tc-pct { color: var(--tier-t6); }
+.tier-card.tier-na { opacity: 0.5; }
+
+/* 사용자 추가 라인 표시 */
+.tier-card.is-user::before,
+.search-result.is-user::before {
+  content: '★';
+  color: var(--tier-t2);
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 10px;
+}
+.tier-card { position: relative; }
+.search-result { position: relative; }
+
+/* === MODAL === */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  z-index: 9998;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  width: min(560px, 100%);
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 28px 30px;
+}
+.modal h2 {
+  font-family: 'Gowun Batang', 'Instrument Serif', serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin-bottom: 6px;
+}
+.modal .modal-sub {
+  font-size: 11px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  margin-bottom: 22px;
+  font-weight: 500;
+}
+.modal-field {
+  margin-bottom: 16px;
+}
+.modal-field label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.modal-field input[type="text"],
+.modal-field textarea {
+  width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border 0.12s;
+}
+.modal-field textarea {
+  font-family: 'JetBrains Mono', monospace;
+  resize: vertical;
+  min-height: 70px;
+  line-height: 1.5;
+}
+.modal-field input:focus,
+.modal-field textarea:focus { border-color: var(--text-dim); }
+.modal-field .hint {
+  font-size: 10px;
+  color: var(--text-mute);
+  margin-top: 5px;
+  letter-spacing: 0.5px;
+  line-height: 1.5;
+}
+.modal-mode-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.modal-mode-tabs button {
+  flex: 1;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+.modal-mode-tabs button.active {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+.modal-error {
+  background: rgba(153, 27, 27, 0.2);
+  border-left: 3px solid var(--tier-t6);
+  color: var(--tier-t1);
+  padding: 10px 12px;
+  font-size: 11px;
+  margin-bottom: 14px;
+  display: none;
+  line-height: 1.5;
+}
+.modal-error.show { display: block; }
+.modal-success {
+  background: rgba(125, 211, 160, 0.15);
+  border-left: 3px solid var(--tier-t3);
+  color: var(--tier-t3);
+  padding: 10px 12px;
+  font-size: 11px;
+  margin-bottom: 14px;
+  display: none;
+}
+.modal-success.show { display: block; }
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+.modal-actions button {
+  flex: 1;
+  padding: 11px 14px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: 1px solid var(--line);
+  transition: all 0.12s;
+}
+.btn-primary { background: var(--tier-t2); color: #1a1a1a; border-color: var(--tier-t2); }
+.btn-primary:hover { background: #ffd23f; }
+.btn-secondary { background: var(--bg-2); color: var(--text); }
+.btn-secondary:hover { background: var(--bg-3); }
+
+/* User openings list */
+.user-list {
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 6px;
+  border: 1px solid var(--line);
+}
+.user-list-item {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.user-list-item:last-child { border-bottom: none; }
+.user-list-item .uli-name { color: var(--text); flex: 1; min-width: 0; word-break: break-word; }
+.user-list-item .uli-meta { color: var(--text-mute); font-size: 9px; letter-spacing: 0.5px; }
+.user-list-item .uli-del {
+  background: none;
+  border: 1px solid var(--line);
+  color: var(--tier-t6);
+  padding: 2px 8px;
+  font-size: 10px;
+  cursor: pointer;
+}
+.user-list-item .uli-del:hover { background: var(--tier-t6); color: #fff; }
+.user-list-empty {
+  padding: 14px;
+  text-align: center;
+  color: var(--text-mute);
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.tl-empty {
+  padding: 80px 20px;
+  text-align: center;
+  color: var(--text-mute);
+  font-size: 12px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  border: 1px dashed var(--line);
+  font-weight: 500;
+  line-height: 1.8;
+}
+
+.tl-cache-info {
+  font-size: 10px;
+  color: var(--text-mute);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-top: 18px;
+  text-align: right;
+  font-weight: 500;
+}
+.tl-cache-info a { color: var(--text-dim); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.tl-cache-info a:hover { color: var(--tier-honey); }
+
+/* When in tierlist mode, hide explorer panels; in explorer mode hide tierlist */
+.app.mode-tierlist .center,
+.app.mode-tierlist .right { display: none; }
+.app.mode-explorer .tierlist-screen { display: none; }
+
+/* ===== LEFT SIDEBAR ===== */
+.sidebar { padding: 28px 22px; overflow-y: auto; max-height: 100vh; }
+.brand {
+  font-family: 'Gowun Batang', 'Instrument Serif', serif;
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+.brand-sub {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: var(--text-mute);
+  margin-top: 8px;
+  margin-bottom: 28px;
+}
+.section { margin-bottom: 26px; }
+.section-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  color: var(--text-mute);
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.toggle-group { display: flex; gap: 4px; }
+.toggle-btn {
+  flex: 1;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  padding: 9px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+  letter-spacing: 0.5px;
+}
+.toggle-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+.toggle-btn:hover:not(.active) { color: var(--text); border-color: #444; }
+
+.btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.mini-btn {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  padding: 8px 4px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.mini-btn.active { background: var(--text); color: var(--bg); border-color: var(--text); }
+.mini-btn:hover:not(.active) { color: var(--text); }
+
+.slider-row {
+  display: grid;
+  grid-template-columns: 56px 1fr 42px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 11px;
+}
+.slider-row label {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.slider-row .val {
+  text-align: right;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  font-weight: 500;
+}
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 2px;
+  background: var(--line);
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--text);
+  cursor: pointer;
+  border-radius: 0;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 12px; height: 12px; background: var(--text); border: none; cursor: pointer; border-radius: 0;
+}
+
+.checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 11px; cursor: pointer; user-select: none; }
+.checkbox-row input { accent-color: var(--text); cursor: pointer; }
+
+/* Search */
+.search-input {
+  width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 9px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  outline: none;
+  transition: border 0.12s;
+  letter-spacing: 0;
+}
+.search-input:focus { border-color: var(--text-dim); }
+.search-input::placeholder { color: var(--text-mute); font-size: 10px; }
+.search-results {
+  margin-top: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-top: none;
+  display: none;
+}
+.search-results.show { display: block; }
+.search-result {
+  padding: 8px 10px;
+  border-left: 2px solid transparent;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.search-result:last-child { border-bottom: none; }
+.search-result:hover { background: var(--bg-2); border-left-color: var(--tier-honey); }
+.search-result .sr-ko {
+  color: var(--text);
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+}
+.search-result .sr-meta {
+  display: block;
+  font-size: 9px;
+  color: var(--text-mute);
+  letter-spacing: 1px;
+  margin-top: 3px;
+  text-transform: uppercase;
+}
+
+/* ===== CENTER ===== */
+.center {
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.opening-name {
+  font-family: 'Gowun Batang', 'Instrument Serif', serif;
+  font-size: 30px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+  min-height: 36px;
+  max-width: 600px;
+  letter-spacing: -0.4px;
+}
+.eco-code {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: var(--text-mute);
+  text-transform: uppercase;
+  margin-top: 8px;
+  margin-bottom: 26px;
+  font-weight: 500;
+}
+
+.board-wrap {
+  width: min(560px, 100%);
+  position: relative;
+}
+.board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid #000;
+  user-select: none;
+}
+.sq {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  line-height: 1;
+}
+.sq.light { background: var(--board-light); }
+.sq.dark { background: var(--board-dark); }
+.sq.piece-w {
+  color: #f8f3e6;
+  text-shadow:
+    -1.2px -1.2px 0 #1a1a1a, 1.2px -1.2px 0 #1a1a1a,
+    -1.2px 1.2px 0 #1a1a1a, 1.2px 1.2px 0 #1a1a1a,
+    0 0 2px #1a1a1a;
+}
+.sq.piece-b {
+  color: #0a0a0a;
+  text-shadow:
+    -0.5px -0.5px 0 rgba(255,255,255,0.3),
+    0.5px 0.5px 0 rgba(255,255,255,0.3);
+}
+.sq.last-move::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(245, 184, 0, 0.32);
+  pointer-events: none;
+}
+.coord {
+  position: absolute;
+  font-size: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  opacity: 0.55;
+  font-weight: 500;
+}
+.coord.file { bottom: 2px; right: 4px; }
+.coord.rank { top: 2px; left: 4px; }
+
+.board-controls {
+  display: flex;
+  gap: 5px;
+  margin-top: 16px;
+  width: min(560px, 100%);
+}
+.board-controls button {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 9px 18px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  transition: all 0.12s;
+}
+.board-controls button:hover { background: var(--bg-3); border-color: #444; }
+.board-controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.movelist {
+  margin-top: 18px;
+  font-size: 14px;
+  width: min(560px, 100%);
+  min-height: 50px;
+  border-top: 1px solid var(--line);
+  padding: 14px 4px 0;
+  word-spacing: 2px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.movelist .empty-ml { color: var(--text-mute); font-size: 11px; letter-spacing: 2px; text-transform: uppercase; font-family: 'Pretendard Variable', sans-serif; }
+.movelist .moveno { color: var(--text-mute); margin-right: 2px; }
+.movelist .ply {
+  color: var(--text);
+  margin-right: 10px;
+  cursor: pointer;
+  font-weight: 500;
+}
+.movelist .ply:hover { color: var(--tier-honey); }
+.movelist .ply.current { color: var(--tier-honey); text-decoration: underline; text-underline-offset: 3px; }
+
+/* ===== RIGHT PANEL ===== */
+.right { padding: 28px 22px; overflow-y: auto; max-height: 100vh; }
+
+.stats-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  margin-bottom: 6px;
+}
+.stat-cell {
+  background: var(--bg);
+  padding: 14px 8px;
+  text-align: center;
+}
+.stat-cell .label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-mute);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.stat-cell .val {
+  font-size: 26px;
+  font-family: 'Gowun Batang', 'Instrument Serif', serif;
+  font-weight: 700;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+.stat-cell .val.w { color: #ffffff; }
+.stat-cell .val.d { color: var(--text-dim); }
+.stat-cell .val.b { color: var(--tier-honey); }
+
+.bar-bg {
+  display: flex;
+  height: 5px;
+  margin-bottom: 8px;
+  background: var(--line);
+}
+.bar-bg .w-seg { background: #f5f5f5; }
+.bar-bg .d-seg { background: var(--text-mute); }
+.bar-bg .b-seg { background: #2a2a2a; }
+
+.total-games {
+  font-size: 10px;
+  color: var(--text-mute);
+  text-align: center;
+  margin-bottom: 22px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.total-games .num { color: var(--text-dim); font-weight: 600; }
+
+.persp-tier {
+  margin-bottom: 18px;
+  padding: 16px 14px;
+  border: 1px solid var(--line);
+  text-align: center;
+}
+.persp-tier .pt-label { font-size: 10px; letter-spacing: 2px; color: var(--text-mute); text-transform: uppercase; font-weight: 600; }
+.persp-tier .pt-val { font-family: 'Gowun Batang', 'Instrument Serif', serif; font-size: 28px; margin-top: 6px; font-weight: 700; }
+.persp-tier .pt-pct { font-size: 12px; color: var(--text-dim); margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+.candidate-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+}
+.candidate {
+  background: var(--bg);
+  padding: 13px 14px;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 60px 64px 1fr 60px;
+  gap: 12px;
+  align-items: center;
+  transition: background 0.1s;
+  border-left: 4px solid transparent;
+}
+.candidate:hover { background: var(--bg-2); }
+.candidate.tier-t1 { border-left-color: var(--tier-t1); }
+.candidate.tier-t2 { border-left-color: var(--tier-t2); }
+.candidate.tier-t3 { border-left-color: var(--tier-t3); }
+.candidate.tier-t4 { border-left-color: var(--tier-t4); }
+.candidate.tier-t5 { border-left-color: var(--tier-t5); }
+.candidate.tier-t6 { border-left-color: var(--tier-t6); }
+.candidate.tier-na { border-left-color: var(--text-mute); opacity: 0.55; }
+
+.cand-san { font-weight: 700; font-size: 16px; letter-spacing: -0.3px; font-family: 'JetBrains Mono', ui-monospace, monospace; }
+.cand-tier {
+  font-size: 12px;
+  font-family: 'Gowun Batang', 'Instrument Serif', serif;
+  font-weight: 700;
+  color: var(--text-mute);
+  letter-spacing: 0;
+}
+.cand-tier.tier-t1 { color: var(--tier-t1); }
+.cand-tier.tier-t2 { color: var(--tier-t2); }
+.cand-tier.tier-t3 { color: var(--tier-t3); }
+.cand-tier.tier-t4 { color: var(--text-dim); }
+.cand-tier.tier-t5 { color: var(--tier-t5); }
+.cand-tier.tier-t6 { color: var(--tier-t6); }
+
+.cand-bar {
+  height: 16px;
+  display: flex;
+  border: 1px solid #000;
+  overflow: hidden;
+}
+.cand-bar .w-seg { background: #f5f5f5; }
+.cand-bar .d-seg { background: var(--text-mute); }
+.cand-bar .b-seg { background: #1a1a1a; }
+
+.cand-games {
+  font-size: 11px;
+  color: var(--text-mute);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.empty-state, .loading {
+  background: var(--bg);
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-mute);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+@media (max-width: 1180px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar, .right { max-height: none; }
+}
+</style>
+</head>
+<body>
+<div class="app mode-explorer" id="app">
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">opening</div>
+    <div class="brand-sub">tier explorer · v0.3</div>
+
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="explorer">탐색</button>
+      <button class="mode-tab" data-mode="tierlist">티어리스트</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">내 라인 / My Lines</div>
+      <div style="display:flex;gap:4px;margin-bottom:6px;">
+        <button class="toggle-btn" id="btn-add-line" style="flex:1.5;background:var(--tier-t2);color:#1a1a1a;border-color:var(--tier-t2);font-weight:700;">+ 새 라인 추가</button>
+        <button class="toggle-btn" id="btn-export" title="JSON으로 내보내기">⬇</button>
+        <button class="toggle-btn" id="btn-import" title="JSON 불러오기">⬆</button>
+      </div>
+      <div id="user-list-summary" style="font-size:10px;color:var(--text-mute);letter-spacing:1px;text-align:center;text-transform:uppercase;margin-top:6px;">시드 — · 내 라인 —</div>
+      <div id="user-list" class="user-list" style="display:none;"></div>
+      <button class="toggle-btn" id="btn-toggle-list" style="width:100%;margin-top:6px;font-size:10px;">내 라인 보기/숨기기</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">검색 / Search</div>
+      <input type="text" id="search-input" placeholder="시실리안 오켈리, ruy lopez, B28 …" autocomplete="off" class="search-input">
+      <div class="search-results" id="search-results"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">시점 / Perspective</div>
+      <div class="toggle-group">
+        <button class="toggle-btn active" data-side="auto">자동</button>
+        <button class="toggle-btn" data-side="white">백</button>
+        <button class="toggle-btn" data-side="black">흑</button>
+      </div>
+      <div id="side-indicator" style="font-size:9px;color:var(--text-mute);letter-spacing:1.5px;text-transform:uppercase;margin-top:8px;text-align:center;">auto · 시작 = 백 시점</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">레이팅대 / Ratings</div>
+      <div class="btn-grid" id="ratings"></div>
+      <button class="toggle-btn" id="rating-all" style="margin-top: 5px; width: 100%;">전 구간 토글</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">시간제어 / Speeds</div>
+      <div class="btn-grid" id="speeds"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">티어 임계치 (시점별 승률 %)</div>
+      <div style="font-size:9px;color:var(--text-mute);letter-spacing:1px;line-height:1.5;margin-bottom:10px;text-align:center;">
+        baseline (4티어 평범 중간):<br>
+        백 <span style="color:#f8f3e6;">50.5%</span> · 흑 <span style="color:#aaa;">45.5%</span><br>
+        <span style="font-size:8px;">e4 e5 통계 (백 51/무 4/흑 45) 기준</span>
+      </div>
+      <div class="slider-row">
+        <label style="color: var(--tier-t1);">1티어↑</label>
+        <input type="range" id="th-t1" min="3" max="9" step="0.5" value="4.5">
+        <span class="val" id="th-t1-val">+4.5</span>
+      </div>
+      <div class="slider-row">
+        <label style="color: var(--tier-t2);">2티어↑</label>
+        <input type="range" id="th-t2" min="1" max="6" step="0.5" value="2">
+        <span class="val" id="th-t2-val">+2.0</span>
+      </div>
+      <div class="slider-row">
+        <label style="color: var(--tier-t3);">3티어↑</label>
+        <input type="range" id="th-t3" min="-1" max="3" step="0.5" value="0.5">
+        <span class="val" id="th-t3-val">+0.5</span>
+      </div>
+      <div class="slider-row">
+        <label style="color: var(--tier-t4);">4티어↑</label>
+        <input type="range" id="th-t4" min="-3" max="0" step="0.5" value="-1.5">
+        <span class="val" id="th-t4-val">-1.5</span>
+      </div>
+      <div class="slider-row">
+        <label style="color: var(--tier-t5);">5티어↑</label>
+        <input type="range" id="th-t5" min="-6" max="-1" step="0.5" value="-3.5">
+        <span class="val" id="th-t5-val">-3.5</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">필터</div>
+      <div class="slider-row">
+        <label>최소판</label>
+        <input type="range" id="min-games" min="0" max="20000" step="100" value="500">
+        <span class="val" id="min-games-val">500</span>
+      </div>
+      <label class="checkbox-row" style="margin-top: 10px;">
+        <input type="checkbox" id="bayesian" checked>
+        <span>베이지안 보정 (50% prior)</span>
+      </label>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Lichess API 토큰</div>
+      <input type="password" id="lichess-token" placeholder="lip_xxxxxxx..." autocomplete="off" class="search-input" style="font-size:10px;letter-spacing:1px;">
+      <div style="display:flex;gap:4px;margin-top:5px;">
+        <button id="token-save" class="toggle-btn" style="flex:1;">저장</button>
+        <button id="token-clear" class="toggle-btn" style="flex:1;">지움</button>
+      </div>
+      <div id="token-status" style="font-size:9px;color:var(--text-mute);letter-spacing:1px;margin-top:6px;text-align:center;text-transform:uppercase;">미설정</div>
+      <a href="https://lichess.org/account/oauth/token/create?description=Opening+Tier+Explorer" target="_blank" style="display:block;margin-top:8px;font-size:9px;color:var(--tier-honey);text-decoration:none;letter-spacing:1px;text-align:center;text-transform:uppercase;">
+        → 토큰 발급 (Lichess 로그인 필요)
+      </a>
+      <div style="font-size:9px;color:var(--text-mute);margin-top:6px;line-height:1.5;">
+        2026년 2월부터 Lichess가 무인증 API 호출을 차단함. 권한 체크박스 전부 빈 상태로 발급해도 동작.
+      </div>
+    </div>
+
+    <div class="section" style="font-size: 9px; color: var(--text-mute); letter-spacing: 1px; line-height: 1.7;">
+      DATA · LICHESS OPENING EXPLORER<br>
+      후보 클릭 → 트리 탐색<br>
+      MOVELIST 클릭 → 그 수로 점프
+    </div>
+  </aside>
+
+  <!-- CENTER -->
+  <main class="center">
+    <div class="opening-name" id="opening-name">Starting Position</div>
+    <div class="eco-code" id="eco-code">— · — moves played</div>
+
+    <div class="board-wrap">
+      <div class="board" id="board"></div>
+    </div>
+
+    <div class="board-controls">
+      <button id="btn-back">← Back</button>
+      <button id="btn-reset">Reset</button>
+      <button id="btn-flip">Flip</button>
+    </div>
+
+    <div class="movelist" id="movelist"></div>
+  </main>
+
+  <!-- TIERLIST SCREEN -->
+  <section class="tierlist-screen" id="tierlist-screen">
+    <div class="tl-header">
+      <div>
+        <div class="tl-title" id="tl-title-side">백 시점 티어리스트</div>
+        <div class="tl-subtitle" id="tl-subtitle">All openings · Bayesian-adjusted</div>
+      </div>
+    </div>
+
+    <div class="tl-controls">
+      <div class="tl-control">
+        <span class="tl-control-label">정렬</span>
+        <select id="tl-sort" style="background:var(--bg-2);color:var(--text);border:1px solid var(--line);padding:6px 8px;font-family:inherit;font-size:11px;">
+          <option value="score">시점 승률 ↓</option>
+          <option value="games">샘플수 ↓</option>
+          <option value="eco">ECO 코드</option>
+          <option value="name">이름</option>
+        </select>
+      </div>
+      <div class="tl-control">
+        <span class="tl-control-label">필터</span>
+        <input type="text" id="tl-filter" placeholder="시실리안, KID..." style="background:var(--bg-2);color:var(--text);border:1px solid var(--line);padding:6px 8px;font-family:inherit;font-size:11px;width:160px;">
+      </div>
+      <button class="tl-fetch-btn" id="tl-fetch">전체 통계 수집</button>
+    </div>
+
+    <div class="tl-progress" id="tl-progress" style="display:none;">
+      <div id="tl-progress-text">0 / 0</div>
+      <div class="tl-progress-bar"><div id="tl-progress-fill"></div></div>
+    </div>
+
+    <div id="tl-grid"></div>
+
+    <div class="tl-cache-info" id="tl-cache-info"></div>
+  </section>
+
+  <!-- RIGHT PANEL -->
+  <aside class="right">
+    <div class="section-title" style="margin-bottom: 10px;">현재 포지션</div>
+    <div class="stats-summary">
+      <div class="stat-cell"><div class="label">백승</div><div class="val w" id="stat-w">—</div></div>
+      <div class="stat-cell"><div class="label">무</div><div class="val d" id="stat-d">—</div></div>
+      <div class="stat-cell"><div class="label">흑승</div><div class="val b" id="stat-b">—</div></div>
+    </div>
+    <div class="bar-bg" id="cur-bar">
+      <div class="w-seg" style="width:33.33%"></div>
+      <div class="d-seg" style="width:33.33%"></div>
+      <div class="b-seg" style="width:33.33%"></div>
+    </div>
+    <div class="total-games"><span class="num" id="total-games">—</span> games</div>
+
+    <div class="persp-tier" id="persp-tier" style="display:none;">
+      <div class="pt-label">현재 포지션 평가 (<span id="pt-side">백</span> 시점)</div>
+      <div class="pt-val" id="pt-label-val">—</div>
+      <div class="pt-pct" id="pt-pct">—</div>
+    </div>
+
+    <div class="section-title" id="cand-title" style="margin-bottom: 10px;">다음 수 후보 / Candidate Moves</div>
+    <div class="candidate-list" id="candidates">
+      <div class="loading">Loading…</div>
+    </div>
+  </aside>
+</div>
+
+<!-- ADD LINE MODAL -->
+<div class="modal-overlay" id="modal-add">
+  <div class="modal">
+    <h2>새 라인 추가</h2>
+    <div class="modal-sub">Add custom opening line</div>
+
+    <div class="modal-error" id="modal-err"></div>
+    <div class="modal-success" id="modal-ok"></div>
+
+    <div class="modal-field">
+      <label>한글명 *</label>
+      <input type="text" id="m-ko" placeholder="예: 시실리안: 차이니즈 드래곤">
+    </div>
+    <div class="modal-field">
+      <label>영문명 *</label>
+      <input type="text" id="m-en" placeholder="예: Sicilian: Chinese Dragon">
+      <div class="hint">시드 라인과 같은 영문명이면 사용자 라인이 우선합니다.</div>
+    </div>
+    <div class="modal-field">
+      <label>ECO 코드</label>
+      <input type="text" id="m-eco" placeholder="예: B70" maxlength="4">
+      <div class="hint">정확히 모르면 가장 가까운 메이저 ECO 코드 (시실리안 = B20~B99). 비워둬도 됨.</div>
+    </div>
+
+    <div class="modal-field">
+      <label>무브 *</label>
+      <div class="modal-mode-tabs">
+        <button id="m-tab-pgn" class="active">PGN 붙여넣기</button>
+        <button id="m-tab-current">현재 보드 위치 사용</button>
+      </div>
+      <textarea id="m-pgn" placeholder="예: 1.e4 c5 2.Nf3 d6 3.d4 cxd4 4.Nxd4 Nf6 5.Nc3 g6 6.Be3 Bg7 7.f3 Nc6 8.Qd2 Rb8&#10;&#10;또는 SAN만: e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 g6 Be3 Bg7 f3 Nc6 Qd2 Rb8"></textarea>
+      <div class="hint" id="m-move-hint">PGN을 붙여넣으세요. 결과(1-0 등), 주석, 변형은 자동 제거됨.</div>
+    </div>
+
+    <div class="modal-field">
+      <label>별칭 (검색용, 선택)</label>
+      <input type="text" id="m-aliases" placeholder="예: 차이니즈드래곤, chinese dragon, rb8 dragon">
+      <div class="hint">콤마로 구분. 한글/영문 다 가능.</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" id="m-cancel">취소</button>
+      <button class="btn-primary" id="m-save">저장</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="import-file" accept=".json,application/json" style="display:none;">
+
+<script>
+// ============== OPENINGS DATA (seed) ==============
+// 메이저 + 주요 사이드라인 시드. 본인이 검수해서 확장하면 됨.
+const OPENINGS = [
+  // 1.e4 메이저 응수
+  { ko:"오픈 게임 (e4 e5)", en:"King's Pawn Game", eco:"C20", uci:["e2e4","e7e5"], aliases:["openg","오픈게임"] },
+  { ko:"시실리안 디펜스", en:"Sicilian Defense", eco:"B20", uci:["e2e4","c7c5"], aliases:["sicilian","시실리안"] },
+  { ko:"프렌치 디펜스", en:"French Defense", eco:"C00", uci:["e2e4","e7e6"], aliases:["french","프렌치"] },
+  { ko:"카로-칸 디펜스", en:"Caro-Kann Defense", eco:"B10", uci:["e2e4","c7c6"], aliases:["caro","카로칸"] },
+  { ko:"스칸디나비안 디펜스", en:"Scandinavian Defense", eco:"B01", uci:["e2e4","d7d5"], aliases:["scandi","스칸디"] },
+  { ko:"피르츠 디펜스", en:"Pirc Defense", eco:"B07", uci:["e2e4","d7d6"], aliases:["pirc","피르츠"] },
+  { ko:"모던 디펜스", en:"Modern Defense", eco:"B06", uci:["e2e4","g7g6"], aliases:["modern","모던"] },
+  { ko:"알레힌 디펜스", en:"Alekhine Defense", eco:"B02", uci:["e2e4","g8f6"], aliases:["alekhine","알레힌"] },
+  { ko:"님조비치 디펜스 (1.e4 Nc6)", en:"Nimzowitsch Defense", eco:"B00", uci:["e2e4","b8c6"], aliases:["nimzowitsch defense"] },
+
+  // 오픈 게임 (1.e4 e5) 분기
+  { ko:"루이 로페즈 (스패니시)", en:"Ruy Lopez", eco:"C60", uci:["e2e4","e7e5","g1f3","b8c6","f1b5"], aliases:["spanish","ruy","루이로페즈","스패니시"] },
+  { ko:"루이 로페즈: 모피 디펜스", en:"Ruy Lopez: Morphy Defense", eco:"C70", uci:["e2e4","e7e5","g1f3","b8c6","f1b5","a7a6"], aliases:["morphy","모피"] },
+  { ko:"루이 로페즈: 모피 - 클로즈드", en:"Ruy Lopez: Closed Variations", eco:"C84", uci:["e2e4","e7e5","g1f3","b8c6","f1b5","a7a6","b5a4","g8f6","e1g1","f8e7"], aliases:["closed ruy","클로즈드"] },
+  { ko:"루이 로페즈: 베를린 디펜스", en:"Ruy Lopez: Berlin Defense", eco:"C65", uci:["e2e4","e7e5","g1f3","b8c6","f1b5","g8f6"], aliases:["berlin","베를린"] },
+  { ko:"루이 로페즈: 익스체인지 변형", en:"Ruy Lopez: Exchange Variation", eco:"C68", uci:["e2e4","e7e5","g1f3","b8c6","f1b5","a7a6","b5c6"], aliases:["exchange ruy","익스체인지"] },
+  { ko:"루이 로페즈: 슐리만 디펜스", en:"Ruy Lopez: Schliemann Defense", eco:"C63", uci:["e2e4","e7e5","g1f3","b8c6","f1b5","f7f5"], aliases:["schliemann","jaenisch","슐리만"] },
+  { ko:"루이 로페즈: 클래시컬 디펜스", en:"Ruy Lopez: Classical Defense", eco:"C64", uci:["e2e4","e7e5","g1f3","b8c6","f1b5","f8c5"], aliases:["classical ruy"] },
+  { ko:"루이 로페즈: 스타이니츠 디펜스", en:"Ruy Lopez: Steinitz Defense", eco:"C62", uci:["e2e4","e7e5","g1f3","b8c6","f1b5","d7d6"], aliases:["steinitz"] },
+  { ko:"루이 로페즈: 버드 디펜스", en:"Ruy Lopez: Bird Variation", eco:"C61", uci:["e2e4","e7e5","g1f3","b8c6","f1b5","c6d4"], aliases:["bird ruy","버드 디펜스"] },
+  { ko:"루이 로페즈: 마샬 어택", en:"Ruy Lopez: Marshall Attack", eco:"C89", uci:["e2e4","e7e5","g1f3","b8c6","f1b5","a7a6","b5a4","g8f6","e1g1","f8e7","f1e1","b7b5","a4b3","e8g8","c2c3","d7d5"], aliases:["marshall","마샬"] },
+
+  { ko:"이탈리안 게임", en:"Italian Game", eco:"C50", uci:["e2e4","e7e5","g1f3","b8c6","f1c4"], aliases:["italian","이탈리안"] },
+  { ko:"이탈리안: 지우코 피아노", en:"Italian Game: Giuoco Piano", eco:"C53", uci:["e2e4","e7e5","g1f3","b8c6","f1c4","f8c5"], aliases:["giuoco","지우코","피아노"] },
+  { ko:"이탈리안: 투 나이트 디펜스", en:"Italian Game: Two Knights Defense", eco:"C55", uci:["e2e4","e7e5","g1f3","b8c6","f1c4","g8f6"], aliases:["two knights","투 나이트"] },
+  { ko:"이탈리안: 헝가리안 디펜스", en:"Italian Game: Hungarian Defense", eco:"C50", uci:["e2e4","e7e5","g1f3","b8c6","f1c4","f8e7"], aliases:["hungarian"] },
+  { ko:"에반스 갬빗", en:"Italian Game: Evans Gambit", eco:"C51", uci:["e2e4","e7e5","g1f3","b8c6","f1c4","f8c5","b2b4"], aliases:["evans","에반스"] },
+
+  { ko:"스카치 게임", en:"Scotch Game", eco:"C45", uci:["e2e4","e7e5","g1f3","b8c6","d2d4"], aliases:["scotch","스카치"] },
+  { ko:"포 나이트 게임", en:"Four Knights Game", eco:"C47", uci:["e2e4","e7e5","g1f3","b8c6","b1c3","g8f6"], aliases:["four knights","포 나이트"] },
+  { ko:"페트로프 디펜스 (러시안)", en:"Russian Game (Petrov Defense)", eco:"C42", uci:["e2e4","e7e5","g1f3","g8f6"], aliases:["petrov","russian game","페트로프"] },
+  { ko:"필리도르 디펜스", en:"Philidor Defense", eco:"C41", uci:["e2e4","e7e5","g1f3","d7d6"], aliases:["philidor","필리도르"] },
+  { ko:"킹스 갬빗", en:"King's Gambit", eco:"C30", uci:["e2e4","e7e5","f2f4"], aliases:["kings gambit","킹스갬빗"] },
+  { ko:"비엔나 게임", en:"Vienna Game", eco:"C25", uci:["e2e4","e7e5","b1c3"], aliases:["vienna","비엔나"] },
+  { ko:"비숍스 오프닝", en:"Bishop's Opening", eco:"C23", uci:["e2e4","e7e5","f1c4"], aliases:["bishops opening","비숍스"] },
+  { ko:"센터 게임", en:"Center Game", eco:"C22", uci:["e2e4","e7e5","d2d4"], aliases:["center game"] },
+
+  // 시실리안 분기
+  { ko:"시실리안: 오픈", en:"Sicilian Defense: Open", eco:"B27", uci:["e2e4","c7c5","g1f3"], aliases:["open sicilian","오픈 시실리안"] },
+  { ko:"시실리안: 나이도프", en:"Sicilian Defense: Najdorf Variation", eco:"B90", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","a7a6"], aliases:["najdorf","나이도프"] },
+  { ko:"시실리안: 드래곤", en:"Sicilian Defense: Dragon Variation", eco:"B70", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","g7g6"], aliases:["dragon","드래곤"] },
+  { ko:"시실리안: 액셀러레이티드 드래곤", en:"Sicilian Defense: Accelerated Dragon", eco:"B34", uci:["e2e4","c7c5","g1f3","b8c6","d2d4","c5d4","f3d4","g7g6"], aliases:["accelerated dragon","액셀러레이티드"] },
+  { ko:"시실리안: 스벤시니코프", en:"Sicilian Defense: Sveshnikov Variation", eco:"B33", uci:["e2e4","c7c5","g1f3","b8c6","d2d4","c5d4","f3d4","g8f6","b1c3","e7e5"], aliases:["sveshnikov","스벤시니코프"] },
+  { ko:"시실리안: 셰베닝겐", en:"Sicilian Defense: Scheveningen Variation", eco:"B80", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","e7e6"], aliases:["scheveningen","셰베닝겐"] },
+  { ko:"시실리안: 타이마노프", en:"Sicilian Defense: Taimanov Variation", eco:"B44", uci:["e2e4","c7c5","g1f3","e7e6","d2d4","c5d4","f3d4","b8c6"], aliases:["taimanov","타이마노프"] },
+  { ko:"시실리안: 칸 변형", en:"Sicilian Defense: Kan Variation", eco:"B41", uci:["e2e4","c7c5","g1f3","e7e6","d2d4","c5d4","f3d4","a7a6"], aliases:["kan","칸 변형"] },
+  { ko:"시실리안: 클래시컬", en:"Sicilian Defense: Classical Variation", eco:"B56", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","b8c6"], aliases:["classical sicilian"] },
+  { ko:"시실리안: 로솔리모 어택", en:"Sicilian Defense: Rossolimo Variation", eco:"B30", uci:["e2e4","c7c5","g1f3","b8c6","f1b5"], aliases:["rossolimo","로솔리모"] },
+  { ko:"시실리안: 모스크바 변형", en:"Sicilian Defense: Canal Attack (Moscow)", eco:"B51", uci:["e2e4","c7c5","g1f3","d7d6","f1b5"], aliases:["moscow","canal","모스크바"] },
+  { ko:"시실리안: 오켈리 변형", en:"Sicilian Defense: O'Kelly Variation", eco:"B28", uci:["e2e4","c7c5","g1f3","a7a6"], aliases:["okelly","o'kelly","오켈리"] },
+  { ko:"시실리안: 알라핀 변형", en:"Sicilian Defense: Alapin Variation", eco:"B22", uci:["e2e4","c7c5","c2c3"], aliases:["alapin","알라핀"] },
+  { ko:"시실리안: 스미스-모라 갬빗", en:"Sicilian Defense: Smith-Morra Gambit", eco:"B21", uci:["e2e4","c7c5","d2d4","c5d4","c2c3"], aliases:["smith-morra","스미스모라","모라갬빗"] },
+  { ko:"시실리안: 클로즈드", en:"Sicilian Defense: Closed", eco:"B23", uci:["e2e4","c7c5","b1c3"], aliases:["closed sicilian","클로즈드 시실리안"] },
+  { ko:"시실리안: 그랑 프리 어택", en:"Sicilian Defense: Grand Prix Attack", eco:"B23", uci:["e2e4","c7c5","b1c3","b8c6","f2f4"], aliases:["grand prix","그랑프리"] },
+  { ko:"시실리안: 윙 갬빗", en:"Sicilian Defense: Wing Gambit", eco:"B20", uci:["e2e4","c7c5","b2b4"], aliases:["wing gambit","윙 갬빗"] },
+  { ko:"시실리안: 님조비치 변형", en:"Sicilian Defense: Nimzowitsch Variation", eco:"B29", uci:["e2e4","c7c5","g1f3","g8f6"], aliases:["nimzowitsch sicilian"] },
+
+  // 프렌치 분기
+  { ko:"프렌치: 어드밴스 변형", en:"French Defense: Advance Variation", eco:"C02", uci:["e2e4","e7e6","d2d4","d7d5","e4e5"], aliases:["advance french","어드밴스"] },
+  { ko:"프렌치: 익스체인지", en:"French Defense: Exchange Variation", eco:"C01", uci:["e2e4","e7e6","d2d4","d7d5","e4d5"], aliases:["exchange french"] },
+  { ko:"프렌치: 타라시", en:"French Defense: Tarrasch Variation", eco:"C03", uci:["e2e4","e7e6","d2d4","d7d5","b1d2"], aliases:["tarrasch","타라시"] },
+  { ko:"프렌치: 위나워 변형", en:"French Defense: Winawer Variation", eco:"C15", uci:["e2e4","e7e6","d2d4","d7d5","b1c3","f8b4"], aliases:["winawer","위나워"] },
+  { ko:"프렌치: 클래시컬", en:"French Defense: Classical Variation", eco:"C11", uci:["e2e4","e7e6","d2d4","d7d5","b1c3","g8f6"], aliases:["classical french"] },
+
+  // 카로칸 분기
+  { ko:"카로칸: 어드밴스", en:"Caro-Kann Defense: Advance Variation", eco:"B12", uci:["e2e4","c7c6","d2d4","d7d5","e4e5"], aliases:["advance caro"] },
+  { ko:"카로칸: 익스체인지", en:"Caro-Kann Defense: Exchange Variation", eco:"B13", uci:["e2e4","c7c6","d2d4","d7d5","e4d5","c6d5"], aliases:["exchange caro"] },
+  { ko:"카로칸: 클래시컬", en:"Caro-Kann Defense: Classical Variation", eco:"B18", uci:["e2e4","c7c6","d2d4","d7d5","b1c3","d5e4","c3e4","c8f5"], aliases:["classical caro"] },
+
+  // 1.d4
+  { ko:"퀸즈 폰 게임", en:"Queen's Pawn Game", eco:"D00", uci:["d2d4","d7d5"], aliases:["queens pawn"] },
+  { ko:"퀸즈 갬빗", en:"Queen's Gambit", eco:"D06", uci:["d2d4","d7d5","c2c4"], aliases:["queens gambit","퀸스갬빗","퀸즈갬빗"] },
+  { ko:"퀸즈 갬빗 어셉티드 (QGA)", en:"Queen's Gambit Accepted", eco:"D20", uci:["d2d4","d7d5","c2c4","d5c4"], aliases:["qga","어셉티드"] },
+  { ko:"퀸즈 갬빗 디클라인드 (QGD)", en:"Queen's Gambit Declined", eco:"D30", uci:["d2d4","d7d5","c2c4","e7e6"], aliases:["qgd","디클라인드"] },
+  { ko:"슬라브 디펜스", en:"Slav Defense", eco:"D10", uci:["d2d4","d7d5","c2c4","c7c6"], aliases:["slav","슬라브"] },
+  { ko:"세미 슬라브", en:"Semi-Slav Defense", eco:"D43", uci:["d2d4","d7d5","c2c4","e7e6","b1c3","c7c6"], aliases:["semi-slav","세미슬라브"] },
+  { ko:"치고린 디펜스", en:"Chigorin Defense", eco:"D07", uci:["d2d4","d7d5","c2c4","b8c6"], aliases:["chigorin","치고린"] },
+  { ko:"앨빈 카운터갬빗", en:"Albin Counter-Gambit", eco:"D08", uci:["d2d4","d7d5","c2c4","e7e5"], aliases:["albin","앨빈"] },
+
+  { ko:"인디언 디펜스", en:"Indian Defense", eco:"A45", uci:["d2d4","g8f6"], aliases:["indian"] },
+  { ko:"킹스 인디언 디펜스 (KID)", en:"King's Indian Defense", eco:"E60", uci:["d2d4","g8f6","c2c4","g7g6"], aliases:["kid","kings indian","킹스인디언"] },
+  { ko:"그륀펠트 디펜스", en:"Grünfeld Defense", eco:"D80", uci:["d2d4","g8f6","c2c4","g7g6","b1c3","d7d5"], aliases:["grunfeld","grünfeld","그륜펠트","그륀펠트"] },
+  { ko:"님조-인디언 디펜스", en:"Nimzo-Indian Defense", eco:"E20", uci:["d2d4","g8f6","c2c4","e7e6","b1c3","f8b4"], aliases:["nimzo","nimzo-indian","님조"] },
+  { ko:"퀸즈 인디언 디펜스 (QID)", en:"Queen's Indian Defense", eco:"E12", uci:["d2d4","g8f6","c2c4","e7e6","g1f3","b7b6"], aliases:["qid","queens indian","퀸즈인디언"] },
+  { ko:"보고-인디언 디펜스", en:"Bogo-Indian Defense", eco:"E11", uci:["d2d4","g8f6","c2c4","e7e6","g1f3","f8b4"], aliases:["bogo","보고"] },
+  { ko:"베노니 디펜스", en:"Benoni Defense", eco:"A60", uci:["d2d4","g8f6","c2c4","c7c5"], aliases:["benoni","베노니"] },
+  { ko:"벤코 갬빗", en:"Benko Gambit", eco:"A57", uci:["d2d4","g8f6","c2c4","c7c5","d4d5","b7b5"], aliases:["benko","벤코"] },
+  { ko:"트롬파우스키 어택", en:"Trompowsky Attack", eco:"A45", uci:["d2d4","g8f6","c1g5"], aliases:["trompowsky","트롬파우스키"] },
+  { ko:"런던 시스템", en:"London System", eco:"D02", uci:["d2d4","d7d5","g1f3","g8f6","c1f4"], aliases:["london","런던"] },
+  { ko:"콜 시스템", en:"Colle System", eco:"D04", uci:["d2d4","d7d5","g1f3","g8f6","e2e3"], aliases:["colle","콜"] },
+  { ko:"더치 디펜스", en:"Dutch Defense", eco:"A80", uci:["d2d4","f7f5"], aliases:["dutch","더치"] },
+
+  // 1.c4 / 1.Nf3 / 기타
+  { ko:"잉글리시 오프닝", en:"English Opening", eco:"A10", uci:["c2c4"], aliases:["english","잉글리시"] },
+  { ko:"레티 오프닝", en:"Réti Opening", eco:"A04", uci:["g1f3"], aliases:["reti","레티"] },
+  { ko:"버드 오프닝", en:"Bird's Opening", eco:"A02", uci:["f2f4"], aliases:["bird","버드"] },
+  { ko:"라르센 오프닝", en:"Nimzo-Larsen Attack", eco:"A01", uci:["b2b3"], aliases:["larsen","nimzo-larsen","라르센"] },
+
+  // === 1.e4 e5 사이드라인 ===
+  { ko:"라트비안 갬빗", en:"Latvian Gambit", eco:"C40", uci:["e2e4","e7e5","g1f3","f7f5"], aliases:["latvian","라트비안"] },
+  { ko:"엘리펀트 갬빗", en:"Elephant Gambit", eco:"C40", uci:["e2e4","e7e5","g1f3","d7d5"], aliases:["elephant","엘리펀트"] },
+  { ko:"댐자노 디펜스", en:"Damiano Defense", eco:"C40", uci:["e2e4","e7e5","g1f3","f7f6"], aliases:["damiano","댐자노"] },
+  { ko:"비숍스: 우르소프 갬빗", en:"Bishop's Opening: Urusov Gambit", eco:"C24", uci:["e2e4","e7e5","f1c4","g8f6","d2d4"], aliases:["urusov","우르소프"] },
+  { ko:"킹스 갬빗 어셉티드", en:"King's Gambit Accepted", eco:"C33", uci:["e2e4","e7e5","f2f4","e5f4"], aliases:["kga","kings gambit accepted"] },
+  { ko:"킹스 갬빗 디클라인드", en:"King's Gambit Declined", eco:"C30", uci:["e2e4","e7e5","f2f4","f8c5"], aliases:["kgd","kings gambit declined"] },
+  { ko:"페트로프: 클래시컬", en:"Petrov Defense: Classical Attack", eco:"C42", uci:["e2e4","e7e5","g1f3","g8f6","f3e5","d7d6","e5f3","f6e4"], aliases:["classical petrov"] },
+  { ko:"스카치: 클래시컬", en:"Scotch Game: Classical Variation", eco:"C45", uci:["e2e4","e7e5","g1f3","b8c6","d2d4","e5d4","f3d4","f8c5"], aliases:["classical scotch"] },
+  { ko:"스카치: 미에세스", en:"Scotch Game: Mieses Variation", eco:"C45", uci:["e2e4","e7e5","g1f3","b8c6","d2d4","e5d4","f3d4","g8f6","d4c6","b7c6","e4e5"], aliases:["mieses","미에세스"] },
+
+  // === 루이로페즈 사이드라인 ===
+  { ko:"루이 로페즈: 오픈 디펜스", en:"Ruy Lopez: Open Variation", eco:"C80", uci:["e2e4","e7e5","g1f3","b8c6","f1b5","a7a6","b5a4","g8f6","e1g1","f6e4"], aliases:["open ruy","오픈 디펜스","오픈 루이"] },
+  { ko:"루이 로페즈: 자이체프 시스템", en:"Ruy Lopez: Closed, Zaitsev System", eco:"C92", uci:["e2e4","e7e5","g1f3","b8c6","f1b5","a7a6","b5a4","g8f6","e1g1","f8e7","f1e1","b7b5","a4b3","d7d6","c2c3","e8g8","h2h3","c8b7"], aliases:["zaitsev","자이체프"] },
+  { ko:"루이 로페즈: 브레이어 디펜스", en:"Ruy Lopez: Closed, Breyer Defense", eco:"C95", uci:["e2e4","e7e5","g1f3","b8c6","f1b5","a7a6","b5a4","g8f6","e1g1","f8e7","f1e1","b7b5","a4b3","d7d6","c2c3","e8g8","h2h3","c6b8"], aliases:["breyer","브레이어"] },
+  { ko:"루이 로페즈: 채반쉬 디펜스", en:"Ruy Lopez: Closed, Chigorin Defense", eco:"C97", uci:["e2e4","e7e5","g1f3","b8c6","f1b5","a7a6","b5a4","g8f6","e1g1","f8e7","f1e1","b7b5","a4b3","d7d6","c2c3","e8g8","h2h3","c6a5"], aliases:["chigorin ruy","채반쉬","치고린 ruy"] },
+  { ko:"루이 로페즈: 모던 스타이니츠 (디퍼드)", en:"Ruy Lopez: Steinitz Defense Deferred", eco:"C79", uci:["e2e4","e7e5","g1f3","b8c6","f1b5","a7a6","b5a4","d7d6"], aliases:["steinitz deferred","모던 스타이니츠"] },
+
+  // === 이탈리안 사이드라인 ===
+  { ko:"이탈리안: 지우코 피아니시모", en:"Italian Game: Giuoco Pianissimo", eco:"C50", uci:["e2e4","e7e5","g1f3","b8c6","f1c4","f8c5","d2d3"], aliases:["pianissimo","피아니시모"] },
+  { ko:"이탈리안: 에반스 갬빗 어셉티드", en:"Italian Game: Evans Gambit Accepted", eco:"C51", uci:["e2e4","e7e5","g1f3","b8c6","f1c4","f8c5","b2b4","c5b4"], aliases:["evans accepted"] },
+  { ko:"이탈리안: 트랙슬러 카운터어택", en:"Italian Game: Two Knights, Traxler Counterattack", eco:"C57", uci:["e2e4","e7e5","g1f3","b8c6","f1c4","g8f6","f3g5","f8c5"], aliases:["traxler","wilkes-barre","트랙슬러"] },
+  { ko:"이탈리안: 프라이드 리버 어택", en:"Italian Game: Two Knights, Fried Liver Attack", eco:"C57", uci:["e2e4","e7e5","g1f3","b8c6","f1c4","g8f6","f3g5","d7d5","e4d5","f6d5","g5f7"], aliases:["fried liver","프라이드 리버"] },
+
+  // === 시실리안 나이도프 사이드라인 ===
+  { ko:"나이도프: 잉글리시 어택", en:"Sicilian: Najdorf, English Attack", eco:"B90", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","a7a6","c1e3"], aliases:["english attack","잉글리시 어택"] },
+  { ko:"나이도프: 폴루가옙스키", en:"Sicilian: Najdorf, Poisoned Pawn (Polugaevsky)", eco:"B96", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","a7a6","c1g5","e7e6","f2f4","b7b5"], aliases:["polugaevsky","폴루가옙스키"] },
+  { ko:"나이도프: 페르난데즈 어택", en:"Sicilian: Najdorf, Main Line", eco:"B92", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","a7a6","f1e2"], aliases:["najdorf main","Be2 najdorf"] },
+  { ko:"나이도프: 소조인-라우저", en:"Sicilian: Najdorf, Sozin Variation", eco:"B86", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","a7a6","f1c4"], aliases:["sozin","fischer-sozin","소조인"] },
+  { ko:"나이도프: 6.f3 어택", en:"Sicilian: Najdorf, 6.f3", eco:"B90", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","a7a6","f2f3"], aliases:["najdorf f3"] },
+  { ko:"나이도프: 6.h3 (Adams)", en:"Sicilian: Najdorf, Adams Attack", eco:"B90", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","a7a6","h2h3"], aliases:["adams attack","najdorf h3"] },
+
+  // === 시실리안 드래곤/스벤 사이드라인 ===
+  { ko:"드래곤: 유고슬라브 어택", en:"Sicilian: Dragon, Yugoslav Attack", eco:"B76", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","g7g6","c1e3","f8g7","f2f3"], aliases:["yugoslav","유고슬라브"] },
+  { ko:"드래곤: 클래시컬 변형", en:"Sicilian: Dragon, Classical Variation", eco:"B72", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","g7g6","f1e2"], aliases:["classical dragon"] },
+  { ko:"액드래곤: 마로치 바인드", en:"Sicilian: Accelerated Dragon, Maroczy Bind", eco:"B36", uci:["e2e4","c7c5","g1f3","b8c6","d2d4","c5d4","f3d4","g7g6","c2c4"], aliases:["maroczy","마로치"] },
+  { ko:"셰베닝겐: 케레스 어택", en:"Sicilian: Scheveningen, Keres Attack", eco:"B81", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","e7e6","g2g4"], aliases:["keres attack","케레스"] },
+  { ko:"셰베닝겐: 잉글리시 어택", en:"Sicilian: Scheveningen, English Attack", eco:"B80", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","e7e6","c1e3"], aliases:["scheveningen english"] },
+  { ko:"라우저 어택", en:"Sicilian: Richter-Rauzer Attack", eco:"B60", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","b8c6","c1g5"], aliases:["rauzer","richter-rauzer","라우저"] },
+
+  // === 프렌치 사이드라인 ===
+  { ko:"프렌치 위나워: 메인 라인", en:"French Defense: Winawer, Main Line", eco:"C18", uci:["e2e4","e7e6","d2d4","d7d5","b1c3","f8b4","e4e5","c7c5"], aliases:["winawer main"] },
+  { ko:"프렌치 위나워: 푸아 송 폰", en:"French Defense: Winawer, Poisoned Pawn", eco:"C18", uci:["e2e4","e7e6","d2d4","d7d5","b1c3","f8b4","e4e5","c7c5","a2a3","b4c3","b2c3","g8e7","d1g4"], aliases:["poisoned pawn french","푸아송폰"] },
+  { ko:"프렌치 타라시: 오픈", en:"French Defense: Tarrasch, Open System", eco:"C07", uci:["e2e4","e7e6","d2d4","d7d5","b1d2","c7c5"], aliases:["tarrasch open"] },
+  { ko:"프렌치: 맥커친 변형", en:"French Defense: MacCutcheon", eco:"C12", uci:["e2e4","e7e6","d2d4","d7d5","b1c3","g8f6","c1g5","f8b4"], aliases:["maccutcheon","맥커친"] },
+  { ko:"프렌치 어드밴스: 밀너-배리 갬빗", en:"French Defense: Advance, Milner-Barry Gambit", eco:"C02", uci:["e2e4","e7e6","d2d4","d7d5","e4e5","c7c5","c2c3","b8c6","g1f3","d8b6","f1d3"], aliases:["milner-barry","밀너배리"] },
+
+  // === 카로칸 사이드라인 ===
+  { ko:"카로칸: 패노프-보트빈닉", en:"Caro-Kann: Panov-Botvinnik Attack", eco:"B14", uci:["e2e4","c7c6","d2d4","d7d5","e4d5","c6d5","c2c4"], aliases:["panov","botvinnik","패노프"] },
+  { ko:"카로칸: 두 나이트 어택", en:"Caro-Kann: Two Knights Attack", eco:"B11", uci:["e2e4","c7c6","g1f3","d7d5","b1c3"], aliases:["two knights caro"] },
+  { ko:"카로칸: 브론슈타인-라르센", en:"Caro-Kann: Bronstein-Larsen Variation", eco:"B16", uci:["e2e4","c7c6","d2d4","d7d5","b1c3","d5e4","c3e4","g8f6","e4f6","g7f6"], aliases:["bronstein-larsen","브론슈타인"] },
+  { ko:"카로칸: 모던 변형 (스미슬로프)", en:"Caro-Kann: Modern Variation", eco:"B17", uci:["e2e4","c7c6","d2d4","d7d5","b1c3","d5e4","c3e4","b8d7"], aliases:["smyslov caro","모던 카로"] },
+
+  // === 스칸디나비안 사이드라인 ===
+  { ko:"스칸디: 클래시컬 (Qa5)", en:"Scandinavian: Classical Variation", eco:"B01", uci:["e2e4","d7d5","e4d5","d8d5","b1c3","d5a5"], aliases:["classical scandi"] },
+  { ko:"스칸디: 모던 (Nf6)", en:"Scandinavian: Modern Variation", eco:"B01", uci:["e2e4","d7d5","e4d5","g8f6"], aliases:["modern scandi"] },
+
+  // === 알레힌 사이드라인 ===
+  { ko:"알레힌: 모던 변형", en:"Alekhine Defense: Modern Variation", eco:"B04", uci:["e2e4","g8f6","e4e5","f6d5","d2d4","d7d6","g1f3"], aliases:["modern alekhine"] },
+  { ko:"알레힌: 4-Pawn 어택", en:"Alekhine Defense: Four Pawns Attack", eco:"B03", uci:["e2e4","g8f6","e4e5","f6d5","d2d4","d7d6","c2c4","d5b6","f2f4"], aliases:["four pawns alekhine"] },
+
+  // === 피르츠/모던 사이드라인 ===
+  { ko:"피르츠: 오스트리안 어택", en:"Pirc Defense: Austrian Attack", eco:"B09", uci:["e2e4","d7d6","d2d4","g8f6","b1c3","g7g6","f2f4"], aliases:["austrian attack","오스트리안"] },
+  { ko:"피르츠: 클래시컬", en:"Pirc Defense: Classical Variation", eco:"B08", uci:["e2e4","d7d6","d2d4","g8f6","b1c3","g7g6","g1f3"], aliases:["classical pirc"] },
+
+  // === QGD 사이드라인 ===
+  { ko:"QGD: 라스커 디펜스", en:"QGD: Lasker Defense", eco:"D56", uci:["d2d4","d7d5","c2c4","e7e6","b1c3","g8f6","c1g5","f8e7","e2e3","e8g8","g1f3","h7h6","g5h4","f6e4"], aliases:["lasker defense","라스커"] },
+  { ko:"QGD: 타르타코버 디펜스", en:"QGD: Tartakower Defense", eco:"D58", uci:["d2d4","d7d5","c2c4","e7e6","b1c3","g8f6","c1g5","f8e7","e2e3","e8g8","g1f3","h7h6","g5h4","b7b6"], aliases:["tartakower","타르타코버"] },
+  { ko:"QGD: 익스체인지 변형", en:"QGD: Exchange Variation", eco:"D35", uci:["d2d4","d7d5","c2c4","e7e6","b1c3","g8f6","c4d5","e6d5"], aliases:["exchange qgd"] },
+  { ko:"QGD: 비엔나 변형", en:"QGD: Vienna Variation", eco:"D37", uci:["d2d4","d7d5","c2c4","e7e6","b1c3","g8f6","c1g5","d5c4"], aliases:["vienna qgd"] },
+  { ko:"QGD: 캠브리지 스프링스", en:"QGD: Cambridge Springs Defense", eco:"D52", uci:["d2d4","d7d5","c2c4","e7e6","b1c3","g8f6","c1g5","b8d7","e2e3","c7c6","g1f3","d8a5"], aliases:["cambridge springs","캠브리지"] },
+
+  // === 슬라브 / 세미슬라브 사이드라인 ===
+  { ko:"슬라브: 익스체인지 변형", en:"Slav Defense: Exchange Variation", eco:"D10", uci:["d2d4","d7d5","c2c4","c7c6","c4d5","c6d5"], aliases:["exchange slav"] },
+  { ko:"슬라브: 메인 라인 (a4)", en:"Slav Defense: Main Line", eco:"D17", uci:["d2d4","d7d5","c2c4","c7c6","g1f3","g8f6","b1c3","d5c4","a2a4"], aliases:["main slav"] },
+  { ko:"세미슬라브: 메란 변형", en:"Semi-Slav: Meran Variation", eco:"D49", uci:["d2d4","d7d5","c2c4","e7e6","b1c3","c7c6","g1f3","g8f6","e2e3","b8d7","f1d3","d5c4","d3c4","b7b5"], aliases:["meran","메란"] },
+  { ko:"세미슬라브: 안티-메란", en:"Semi-Slav: Anti-Meran (Moscow)", eco:"D43", uci:["d2d4","d7d5","c2c4","e7e6","b1c3","c7c6","g1f3","g8f6","c1g5"], aliases:["anti-meran","안티메란"] },
+  { ko:"세미슬라브: 보트빈닉 변형", en:"Semi-Slav: Botvinnik Variation", eco:"D44", uci:["d2d4","d7d5","c2c4","e7e6","b1c3","c7c6","g1f3","g8f6","c1g5","d5c4"], aliases:["botvinnik semi-slav","보트빈닉"] },
+
+  // === 그륀펠트 사이드라인 ===
+  { ko:"그륀펠트: 익스체인지", en:"Grünfeld: Exchange Variation", eco:"D85", uci:["d2d4","g8f6","c2c4","g7g6","b1c3","d7d5","c4d5","f6d5","e2e4","d5c3","b2c3"], aliases:["exchange grunfeld"] },
+  { ko:"그륀펠트: 러시안 시스템", en:"Grünfeld: Russian System", eco:"D97", uci:["d2d4","g8f6","c2c4","g7g6","b1c3","d7d5","g1f3","f8g7","d1b3"], aliases:["russian grunfeld","러시안 그륀"] },
+
+  // === KID 사이드라인 ===
+  { ko:"KID: 클래시컬", en:"King's Indian Defense: Classical", eco:"E92", uci:["d2d4","g8f6","c2c4","g7g6","b1c3","f8g7","e2e4","d7d6","g1f3","e8g8","f1e2"], aliases:["classical kid","kid classical"] },
+  { ko:"KID: 사미슈 변형", en:"King's Indian Defense: Sämisch Variation", eco:"E80", uci:["d2d4","g8f6","c2c4","g7g6","b1c3","f8g7","e2e4","d7d6","f2f3"], aliases:["samisch","사미슈"] },
+  { ko:"KID: 4-Pawn 어택", en:"King's Indian Defense: Four Pawns Attack", eco:"E76", uci:["d2d4","g8f6","c2c4","g7g6","b1c3","f8g7","e2e4","d7d6","f2f4"], aliases:["four pawns kid"] },
+  { ko:"KID: 마코긴 변형", en:"King's Indian Defense: Makogonov Variation", eco:"E90", uci:["d2d4","g8f6","c2c4","g7g6","b1c3","f8g7","e2e4","d7d6","g1f3","e8g8","h2h3"], aliases:["makogonov","마코긴"] },
+  { ko:"KID: 페트로시안 시스템", en:"King's Indian Defense: Petrosian System", eco:"E92", uci:["d2d4","g8f6","c2c4","g7g6","b1c3","f8g7","e2e4","d7d6","g1f3","e8g8","f1e2","e7e5","d4d5"], aliases:["petrosian kid"] },
+
+  // === 님조-인디언 사이드라인 ===
+  { ko:"님조: 루빈슈타인 (e3)", en:"Nimzo-Indian: Rubinstein", eco:"E40", uci:["d2d4","g8f6","c2c4","e7e6","b1c3","f8b4","e2e3"], aliases:["rubinstein nimzo","루빈슈타인"] },
+  { ko:"님조: 사미슈 (a3)", en:"Nimzo-Indian: Sämisch", eco:"E25", uci:["d2d4","g8f6","c2c4","e7e6","b1c3","f8b4","a2a3"], aliases:["samisch nimzo"] },
+  { ko:"님조: 클래시컬 (Qc2)", en:"Nimzo-Indian: Classical (Capablanca)", eco:"E32", uci:["d2d4","g8f6","c2c4","e7e6","b1c3","f8b4","d1c2"], aliases:["classical nimzo","capablanca nimzo","Qc2"] },
+  { ko:"님조: 림 변형 (Bg5)", en:"Nimzo-Indian: Leningrad", eco:"E30", uci:["d2d4","g8f6","c2c4","e7e6","b1c3","f8b4","c1g5"], aliases:["leningrad nimzo","림 nimzo"] },
+
+  // === 베노니 사이드라인 ===
+  { ko:"모던 베노니", en:"Modern Benoni", eco:"A60", uci:["d2d4","g8f6","c2c4","c7c5","d4d5","e7e6"], aliases:["modern benoni","모던 베노니"] },
+  { ko:"체코 베노니", en:"Czech Benoni", eco:"A56", uci:["d2d4","g8f6","c2c4","c7c5","d4d5","e7e5"], aliases:["czech benoni","체코"] },
+
+  // === 잉글리시 사이드라인 ===
+  { ko:"잉글리시: 시메트리컬", en:"English Opening: Symmetrical", eco:"A30", uci:["c2c4","c7c5"], aliases:["symmetrical english","시메트리컬"] },
+  { ko:"잉글리시: 1.c4 e5 (역시실리안)", en:"English Opening: Reversed Sicilian", eco:"A20", uci:["c2c4","e7e5"], aliases:["reversed sicilian","역시실리안","c4 e5"] },
+  { ko:"잉글리시: 마링거 어택", en:"English: Mikenas-Carls Variation", eco:"A18", uci:["c2c4","g8f6","b1c3","e7e6","e2e4"], aliases:["mikenas","마링거"] },
+
+  // === 더치 사이드라인 ===
+  { ko:"더치: 클래시컬", en:"Dutch Defense: Classical Variation", eco:"A84", uci:["d2d4","f7f5","c2c4","g8f6","g1f3","e7e6"], aliases:["classical dutch"] },
+  { ko:"더치: 레닌그라드", en:"Dutch Defense: Leningrad Variation", eco:"A87", uci:["d2d4","f7f5","g2g3","g8f6","f1g2","g7g6"], aliases:["leningrad dutch","레닌그라드"] },
+  { ko:"더치: 스톤월", en:"Dutch Defense: Stonewall", eco:"A95", uci:["d2d4","f7f5","c2c4","g8f6","g1f3","e7e6","g2g3","d7d5"], aliases:["stonewall","스톤월"] },
+  { ko:"스타운턴 갬빗", en:"Dutch Defense: Staunton Gambit", eco:"A82", uci:["d2d4","f7f5","e2e4"], aliases:["staunton","스타운턴"] },
+];
+
+// Validate openings — log invalid UCI sequences to console
+function validateAllOpenings() {
+  const errors = [];
+  for (const op of getAllOpenings()) {
+    const g = new Chess();
+    for (const uci of op.uci) {
+      const move = g.move({ from: uci.slice(0,2), to: uci.slice(2,4), promotion: uci.slice(4) || undefined });
+      if (!move) { errors.push(`[${op.eco}] ${op.en}: invalid UCI "${uci}"`); break; }
+    }
+  }
+  if (errors.length > 0) console.warn('OPENINGS validation:', errors.length, 'errors\n', errors.join('\n'));
+  else console.log('OPENINGS validation OK — seed:', OPENINGS.length, '+ user:', USER_OPENINGS.length, '=', getAllOpenings().length);
+}
+
+function searchOpenings(query) {
+  if (!query || query.trim().length === 0) return [];
+  const q = query.toLowerCase().trim();
+  const matches = [];
+  for (const op of getAllOpenings()) {
+    let score = 0;
+    if (op.eco.toLowerCase() === q) score = 100;
+    else if (op.ko && op.ko.toLowerCase().includes(q)) score = 80;
+    else if (op.en.toLowerCase().includes(q)) score = 60;
+    else if (op.aliases && op.aliases.some(a => a.toLowerCase().includes(q))) score = 50;
+    if (score > 0) {
+      score += Math.max(0, 20 - op.en.length / 3);
+      if (op._user) score += 5;  // 사용자 라인 약간 우선
+      matches.push({ op, score });
+    }
+  }
+  matches.sort((a, b) => b.score - a.score);
+  return matches.slice(0, 12).map(m => m.op);
+}
+
+function jumpToOpening(op) {
+  state.history = [];
+  state.game = new Chess();
+  for (const uci of op.uci) {
+    const from = uci.slice(0,2);
+    const to = uci.slice(2,4);
+    const promo = uci.slice(4) || undefined;
+    const move = state.game.move({ from, to, promotion: promo });
+    if (!move) { console.error('Invalid move in opening sequence', op.en, uci); break; }
+    state.history.push({ san: move.san, uci, fenAfter: state.game.fen() });
+  }
+  renderAll();
+  fetchAndRender();
+}
+
+// ============== USER OPENINGS (사용자 추가 라인) ==============
+// 시드(OPENINGS)는 const, USER_OPENINGS는 localStorage에 저장됨.
+// 둘은 getAllOpenings()으로 합쳐져서 검색/티어리스트에 같이 등장.
+let USER_OPENINGS = [];
+
+function loadUserOpenings() {
+  try {
+    const raw = localStorage.getItem('user_openings');
+    if (!raw) { USER_OPENINGS = []; return; }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) { USER_OPENINGS = []; return; }
+    USER_OPENINGS = parsed.filter(op =>
+      op && typeof op.ko === 'string' && typeof op.en === 'string'
+        && Array.isArray(op.uci) && op.uci.length > 0);
+  } catch (e) {
+    console.warn('USER_OPENINGS load failed', e);
+    USER_OPENINGS = [];
+  }
+}
+function saveUserOpenings() {
+  try {
+    localStorage.setItem('user_openings', JSON.stringify(USER_OPENINGS));
+  } catch (e) { console.error('saveUserOpenings failed', e); }
+}
+
+function getAllOpenings() {
+  // 사용자 라인이 시드보다 우선 (영문명 충돌 시 사용자 거가 이김)
+  const seedFiltered = OPENINGS.filter(seed =>
+    !USER_OPENINGS.some(u => u.en === seed.en));
+  return [...USER_OPENINGS.map(u => ({ ...u, _user: true })), ...seedFiltered];
+}
+
+// PGN 문자열 → UCI 배열 (chess.js로 파싱)
+function pgnToUci(pgn) {
+  const cleaned = pgn
+    .replace(/\{[^}]*\}/g, '')      // 주석 제거
+    .replace(/\([^)]*\)/g, '')      // 변형 제거 (한 단계만)
+    .replace(/\$\d+/g, '')          // NAG 제거
+    .replace(/\d+\.\.\.?/g, '')     // 무브 번호 제거
+    .replace(/\d+\./g, '')
+    .replace(/[!?+#]/g, '')         // 평가/체크 표기 제거
+    .replace(/(1-0|0-1|1\/2-1\/2|\*)/g, '')  // 결과
+    .trim();
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  const g = new Chess();
+  const uci = [];
+  for (const tok of tokens) {
+    const move = g.move(tok, { sloppy: true });
+    if (!move) throw new Error(`수 파싱 실패: "${tok}" — 그 시점까지의 무브: ${uci.join(' ')}`);
+    uci.push(move.from + move.to + (move.promotion || ''));
+  }
+  return uci;
+}
+
+// UCI 배열 검증 (잘못된 수 있으면 throw)
+function validateUciSequence(uciArr) {
+  const g = new Chess();
+  for (const uci of uciArr) {
+    if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(uci)) throw new Error(`UCI 형식 오류: "${uci}"`);
+    const move = g.move({ from: uci.slice(0,2), to: uci.slice(2,4), promotion: uci.slice(4) || undefined });
+    if (!move) throw new Error(`불법 수: "${uci}"`);
+  }
+}
+
+// ============== OPENINGS DATA (seed) END ==============
+const TIERLIST = {
+  results: null,        // [{op, white, draws, black}]
+  fetching: false,
+  cacheKey: () => `tl::${[...state.speeds].sort().join(',')}::${[...state.ratings].sort().join(',')}`,
+};
+
+function loadTierlistCache() {
+  try {
+    const raw = localStorage.getItem(TIERLIST.cacheKey());
+    if (!raw) return null;
+    const obj = JSON.parse(raw);
+    if (Date.now() - obj.ts > 24 * 3600 * 1000) return null;  // 24h
+    return obj;
+  } catch { return null; }
+}
+function saveTierlistCache(results) {
+  try {
+    localStorage.setItem(TIERLIST.cacheKey(), JSON.stringify({ ts: Date.now(), results }));
+  } catch (e) { console.warn('localStorage save failed', e); }
+}
+
+async function fetchOneOpening(op) {
+  const speeds = [...state.speeds].join(',');
+  const ratings = [...state.ratings].join(',');
+  const play = op.uci.join(',');
+  const params = new URLSearchParams({
+    variant: 'standard',
+    speeds, ratings,
+    topGames: '0', recentGames: '0', moves: '0',
+  });
+  if (play) params.set('play', play);
+  const url = `https://explorer.lichess.ovh/lichess?${params.toString()}`;
+  const res = await fetch(url, { headers: authHeaders() });
+  if (!res.ok) {
+    if (res.status === 401) showAuthWarning();
+    throw new Error('API ' + res.status);
+  }
+  return res.json();
+}
+
+async function fetchAllOpenings() {
+  if (TIERLIST.fetching) { console.warn('[Tierlist] already fetching'); return; }
+  if (state.speeds.size === 0 || state.ratings.size === 0) {
+    alert('레이팅대 또는 시간제어를 최소 1개 선택하세요.');
+    return;
+  }
+  if (!getToken()) {
+    alert('Lichess 토큰이 필요합니다. 사이드바 하단에서 입력하세요.');
+    return;
+  }
+  TIERLIST.fetching = true;
+  TIERLIST.results = [];  // 빈 배열로 시작 → 부분 결과 즉시 렌더
+  document.getElementById('tl-fetch').disabled = true;
+  document.getElementById('tl-progress').style.display = 'block';
+
+  const ALL = getAllOpenings();
+  console.log('[Tierlist] starting fetch of', ALL.length, 'openings (seed +', USER_OPENINGS.length, 'user)');
+  console.log('[Tierlist] speeds:', [...state.speeds].join(','), '| ratings:', [...state.ratings].join(','));
+
+  const total = ALL.length;
+  let done = 0;
+  let errors = 0;
+
+  // 보수적 페이스: 2개씩 + 350ms 딜레이 (분당 ~340 호출, 안전선)
+  const BATCH = 2;
+  const DELAY = 350;
+
+  for (let i = 0; i < total; i += BATCH) {
+    const slice = ALL.slice(i, i + BATCH);
+    const settled = await Promise.allSettled(slice.map(op => fetchOneOpening(op)));
+    settled.forEach((r, idx) => {
+      const op = slice[idx];
+      if (r.status === 'fulfilled') {
+        const d = r.value;
+        TIERLIST.results.push({ op, white: d.white||0, draws: d.draws||0, black: d.black||0 });
+      } else {
+        errors++;
+        TIERLIST.results.push({ op, white: 0, draws: 0, black: 0, error: true });
+        console.warn('[Tierlist]', op.eco, op.en, '→', r.reason?.message || r.reason);
+      }
+    });
+    done = Math.min(i + BATCH, total);
+    document.getElementById('tl-progress-text').textContent =
+      `${done} / ${total}` + (errors > 0 ? ` (${errors} errors)` : '');
+    document.getElementById('tl-progress-fill').style.width = (done / total * 100) + '%';
+
+    // 매 10개마다 부분 결과 렌더 (긴 대기 중에도 결과 즉시 보임)
+    if (done % 10 === 0 || done === total) renderTierlist();
+
+    if (i + BATCH < total) await new Promise(r => setTimeout(r, DELAY));
+  }
+
+  saveTierlistCache(TIERLIST.results);
+  TIERLIST.fetching = false;
+  document.getElementById('tl-fetch').disabled = false;
+  document.getElementById('tl-progress').style.display = 'none';
+  console.log('[Tierlist] done.', total - errors, 'success /', errors, 'errors');
+  renderTierlist();
+}
+
+function classifyForTier(white, draws, black, op) {
+  const total = white + draws + black;
+  const sideUsed = effectiveSide(op.uci.length);
+  if (total < state.minGames) return { key: 'na', label: '샘플↓', pct: null, total, sideUsed };
+  const myWins = sideUsed === 'white' ? white : black;
+  let winRate;
+  if (state.bayesian) {
+    const prior = 250;
+    const baselinePct = state.baselines[sideUsed] / 100;
+    winRate = (myWins + prior * baselinePct) / (total + prior);
+  } else {
+    winRate = myWins / total;
+  }
+  const persPct = winRate * 100;
+  return { ...tierFromPct(persPct, sideUsed), total, sideUsed };
+}
+
+function renderTierlist() {
+  const grid = document.getElementById('tl-grid');
+  const titleEl = document.getElementById('tl-title-side');
+  if (state.side === 'auto') titleEl.textContent = '자동 시점 티어리스트';
+  else titleEl.textContent = (state.side === 'white' ? '백' : '흑') + ' 시점 티어리스트';
+  document.getElementById('tl-subtitle').textContent =
+    (state.side === 'auto'
+      ? '각 오프닝의 마지막 둔 색 시점으로 평가'
+      : `${state.side === 'white' ? '백' : '흑'}이 마지막에 둔 라인만 · 그 시점에서 평가`)
+    + ' · Bayesian-adjusted';
+
+  if (!TIERLIST.results || TIERLIST.results.length === 0) {
+    if (TIERLIST.fetching) {
+      grid.innerHTML = '<div class="tl-empty" style="color:var(--tier-honey);">수집 진행 중...<br><span style="font-size:11px;text-transform:none;letter-spacing:1px;color:var(--text-mute);">위 진행률 막대 참고. 약 1~2분 소요.</span></div>';
+    } else if (!getToken()) {
+      grid.innerHTML = '<div class="tl-empty" style="color:var(--tier-broken);">⚠ Lichess 토큰 미설정<br><span style="font-size:11px;text-transform:none;letter-spacing:1px;color:var(--text-mute);">왼쪽 사이드바 [Lichess API 토큰] 섹션에서 발급/입력</span></div>';
+    } else {
+      grid.innerHTML = '<div class="tl-empty">우측 [전체 통계 수집] 버튼으로 시작 — 약 1~2분 소요, 24시간 캐시</div>';
+    }
+    document.getElementById('tl-cache-info').innerHTML = '';
+    return;
+  }
+
+  const filterTxt = document.getElementById('tl-filter').value.toLowerCase().trim();
+  const sortKey = document.getElementById('tl-sort').value;
+
+  // Classify each
+  const classified = TIERLIST.results
+    .filter(r => {
+      // 강제 시점일 때: 라인의 마지막 둔 색과 일치하는 것만
+      if (state.side !== 'auto') {
+        const lineSide = r.op.uci.length === 0
+          ? 'white'
+          : (r.op.uci.length % 2 === 1 ? 'white' : 'black');
+        if (lineSide !== state.side) return false;
+      }
+      if (!filterTxt) return true;
+      return r.op.ko.toLowerCase().includes(filterTxt)
+          || r.op.en.toLowerCase().includes(filterTxt)
+          || r.op.eco.toLowerCase().includes(filterTxt)
+          || (r.op.aliases || []).some(a => a.toLowerCase().includes(filterTxt));
+    })
+    .map(r => {
+      const cls = classifyForTier(r.white, r.draws, r.black, r.op);
+      return { ...r, ...cls };
+    });
+
+  // Group by tier
+  const groups = { t1: [], t2: [], t3: [], t4: [], t5: [], t6: [], na: [] };
+  classified.forEach(c => groups[c.key].push(c));
+
+  // Sort within each tier
+  const sortFn = {
+    score: (a, b) => (b.pct ?? -1) - (a.pct ?? -1),
+    games: (a, b) => b.total - a.total,
+    eco: (a, b) => a.op.eco.localeCompare(b.op.eco),
+    name: (a, b) => a.op.ko.localeCompare(b.op.ko, 'ko'),
+  }[sortKey];
+  for (const k of Object.keys(groups)) groups[k].sort(sortFn);
+
+  function fmtThreshOf(side, key, isAbove, isBelow) {
+    const t = getThresholdsForSide(side);
+    if (isAbove) return `≥${t[key].toFixed(1)}`;
+    if (isBelow) return `<${t[key].toFixed(1)}`;
+    return t[key].toFixed(1);
+  }
+  function fmtRange(side, lo, hi) {
+    const t = getThresholdsForSide(side);
+    return `${t[lo].toFixed(1)}–${t[hi].toFixed(1)}`;
+  }
+  function makeRangeLabel(below, above) {
+    if (state.side === 'auto') {
+      // 백/흑 둘 다 표시
+      const w = below === null ? `≥${getThresholdsForSide('white')[above].toFixed(1)}`
+              : above === null ? `<${getThresholdsForSide('white')[below].toFixed(1)}`
+              : `${getThresholdsForSide('white')[below].toFixed(1)}–${getThresholdsForSide('white')[above].toFixed(1)}`;
+      const b = below === null ? `≥${getThresholdsForSide('black')[above].toFixed(1)}`
+              : above === null ? `<${getThresholdsForSide('black')[below].toFixed(1)}`
+              : `${getThresholdsForSide('black')[below].toFixed(1)}–${getThresholdsForSide('black')[above].toFixed(1)}`;
+      return `백 ${w}% · 흑 ${b}%`;
+    } else {
+      const t = getThresholdsForSide(state.side);
+      const r = below === null ? `≥${t[above].toFixed(1)}`
+              : above === null ? `<${t[below].toFixed(1)}`
+              : `${t[below].toFixed(1)}–${t[above].toFixed(1)}`;
+      return `${r}%`;
+    }
+  }
+
+  const tierMeta = [
+    { key: 't1', name: '1티어 사기',   threshFn: () => makeRangeLabel(null, 't1') },
+    { key: 't2', name: '2티어 꿀',     threshFn: () => makeRangeLabel('t2', 't1') },
+    { key: 't3', name: '3티어 좋음',   threshFn: () => makeRangeLabel('t3', 't2') },
+    { key: 't4', name: '4티어 평범',   threshFn: () => makeRangeLabel('t4', 't3') },
+    { key: 't5', name: '5티어 구림',   threshFn: () => makeRangeLabel('t5', 't4') },
+    { key: 't6', name: '6티어 쓰레기', threshFn: () => makeRangeLabel('t5', null) },
+    { key: 'na', name: '샘플↓',         threshFn: () => `< ${state.minGames} 판` },
+  ];
+
+  let html = '';
+  for (const t of tierMeta) {
+    const items = groups[t.key];
+    html += `<div class="tier-row">
+      <div class="tier-label-cell tier-${t.key}">
+        <div class="tl-name">${t.name}</div>
+        <div class="tl-thresh">${t.threshFn()}</div>
+        <div class="tl-count">${items.length}개</div>
+      </div>
+      <div class="tier-cards">`;
+    if (items.length === 0) {
+      html += `<div style="color:var(--text-mute);font-size:9px;letter-spacing:2px;text-transform:uppercase;align-self:center;padding:8px;">empty</div>`;
+    } else {
+      for (const it of items) {
+        const pctTxt = it.pct !== null ? `<span class="tc-pct">${it.pct.toFixed(1)}%</span>` : '<span style="color:var(--text-mute);">—</span>';
+        const sideSym = it.sideUsed === 'white' ? '<span style="color:#f8f3e6;">♔</span>' : '<span style="color:#aaa;">♚</span>';
+        // 미니 승률 바
+        let miniBar = '';
+        if (it.total > 0) {
+          const wpct = (it.white / it.total * 100).toFixed(1);
+          const dpct = (it.draws / it.total * 100).toFixed(1);
+          const bpct = (it.black / it.total * 100).toFixed(1);
+          miniBar = `<div class="tc-bar"><div class="w-seg" style="width:${wpct}%"></div><div class="d-seg" style="width:${dpct}%"></div><div class="b-seg" style="width:${bpct}%"></div></div>`;
+        }
+        const userCls = it.op._user ? ' is-user' : '';
+        html += `<div class="tier-card tier-${t.key}${userCls}" data-eco="${it.op.eco}" data-en="${it.op.en.replace(/"/g,'&quot;')}">
+          <div class="tc-ko">${sideSym} ${it.op.ko}</div>
+          <div class="tc-meta">${it.op.eco} · ${pctTxt} · ${it.total.toLocaleString()}</div>
+          ${miniBar}
+        </div>`;
+      }
+    }
+    html += `</div></div>`;
+  }
+  grid.innerHTML = html;
+
+  // Card click → jump to explorer
+  grid.querySelectorAll('.tier-card').forEach(card => {
+    card.onclick = () => {
+      const en = card.dataset.en;
+      const op = getAllOpenings().find(o => o.en === en);
+      if (!op) return;
+      switchMode('explorer');
+      jumpToOpening(op);
+    };
+  });
+
+  // Cache info
+  const cacheInfo = document.getElementById('tl-cache-info');
+  const cached = loadTierlistCache();
+  if (cached) {
+    const ageMin = Math.round((Date.now() - cached.ts) / 60000);
+    cacheInfo.innerHTML = `cached ${ageMin}분 전 · <a id="tl-clear-cache">캐시 지우기 / 재수집</a>`;
+    document.getElementById('tl-clear-cache').onclick = () => {
+      localStorage.removeItem(TIERLIST.cacheKey());
+      TIERLIST.results = null;
+      renderTierlist();
+    };
+  } else {
+    cacheInfo.innerHTML = '';
+  }
+}
+
+function switchMode(mode) {
+  const app = document.getElementById('app');
+  app.classList.toggle('mode-explorer', mode === 'explorer');
+  app.classList.toggle('mode-tierlist', mode === 'tierlist');
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.toggle('active', t.dataset.mode === mode));
+  if (mode === 'tierlist') {
+    const cached = loadTierlistCache();
+    if (cached && (!TIERLIST.results || TIERLIST.results.length === 0)) {
+      TIERLIST.results = cached.results;
+    }
+    renderTierlist();
+    // 결과가 정말 없을 때만 자동 수집
+    const hasResults = TIERLIST.results && TIERLIST.results.length > 0;
+    if (!hasResults && !TIERLIST.fetching) {
+      if (getToken()) {
+        console.log('[Tierlist] auto-starting collection');
+        fetchAllOpenings();
+      } else {
+        document.getElementById('tl-grid').innerHTML =
+          '<div class="tl-empty" style="color:var(--tier-broken);">' +
+          '⚠ Lichess 토큰이 설정 안 됐습니다<br>' +
+          '<span style="font-size:11px;text-transform:none;letter-spacing:1px;color:var(--text-mute);">' +
+          '왼쪽 사이드바 하단 [Lichess API 토큰] 섹션에서 토큰 발급/입력 후 다시 시도</span>' +
+          '</div>';
+      }
+    }
+  }
+}
+
+// ============== END TIERLIST ==============
+
+// ============== STATE ==============
+const RATING_BUCKETS = ['400','1000','1200','1400','1600','1800','2000','2200','2500'];
+const SPEED_TYPES = ['ultraBullet','bullet','blitz','rapid','classical','correspondence'];
+const SPEED_LABELS = { ultraBullet:'ultra', bullet:'bullet', blitz:'blitz', rapid:'rapid', classical:'classcl', correspondence:'corr' };
+
+const state = {
+  side: 'auto',  // 'auto' | 'white' | 'black' — auto: 마지막 두어진 수의 색
+  ratings: new Set(['400','1000','1200','1400','1600','1800','2000']),
+  speeds: new Set(['blitz','rapid','classical']),
+  // baseline: 백/흑이 평균적으로 받는 승률. e4 e5 통계(백 51/무 4/흑 45)에서 무는 양쪽 0.5%p씩 분산.
+  // 백 50.5% / 흑 45.5% 가 4티어 평범의 중간으로 잡힘.
+  baselines: { white: 50.5, black: 45.5 },
+  // 임계치 = baseline + 오프셋 (시점별로 적용).
+  // 1티어 +4.5, 2티어 +2, 3티어 +0.5, 4티어 -1.5, 5티어 -3.5
+  thresholdOffsets: { t1: 4.5, t2: 2.0, t3: 0.5, t4: -1.5, t5: -3.5 },
+  minGames: 500,
+  bayesian: true,
+  flipped: false,  // 보드 방향만 (시점과 분리)
+  history: [],   // [{ san, uci, fenAfter }]
+  game: new Chess(),
+  cache: new Map(),
+  lastData: null,
+};
+
+// 포지션 평가용: 마지막 두어진 수의 색 (오프닝 라인 자체의 평가)
+function effectiveSidePosition(plyCount) {
+  if (state.side !== 'auto') return state.side;
+  if (plyCount === 0) return 'white';
+  return plyCount % 2 === 1 ? 'white' : 'black';
+}
+
+// 후보 수 평가용: 다음 둘 차례의 색 (응수 평가)
+function effectiveSideNextMove(plyCount) {
+  if (state.side !== 'auto') return state.side;
+  return plyCount % 2 === 0 ? 'white' : 'black';
+}
+
+// 호환성: 기존 effectiveSide는 포지션 시점으로 alias
+const effectiveSide = effectiveSidePosition;
+
+const PIECES = { K:'♚', Q:'♛', R:'♜', B:'♝', N:'♞', P:'♟' };
+
+// ============== BOARD ==============
+function renderBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  const fen = state.game.fen().split(' ')[0];
+  const rows = fen.split('/'); // rank 8 first
+  const last = state.history[state.history.length - 1];
+  const lastSqs = last ? [last.uci.slice(0,2), last.uci.slice(2,4)] : [];
+
+  // expand rows into 8x8 array indexed [rank8..rank1][fileA..fileH]
+  const grid = rows.map(r => {
+    const arr = [];
+    for (const ch of r) {
+      if (/\d/.test(ch)) for (let i=0;i<+ch;i++) arr.push(null);
+      else arr.push(ch);
+    }
+    return arr;
+  });
+
+  const rankOrder = state.flipped ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
+  const fileOrder = state.flipped ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
+
+  for (let ri = 0; ri < 8; ri++) {
+    for (let fi = 0; fi < 8; fi++) {
+      const realRank = rankOrder[ri]; // 0=rank8, 7=rank1
+      const realFile = fileOrder[fi];
+      const rankNum = 8 - realRank;
+      const fileChar = String.fromCharCode(97 + realFile);
+      const sqName = fileChar + rankNum;
+      const piece = grid[realRank][realFile];
+
+      const div = document.createElement('div');
+      const isLight = (realRank + realFile) % 2 === 0;
+      div.className = 'sq ' + (isLight ? 'light' : 'dark');
+      if (lastSqs.includes(sqName)) div.classList.add('last-move');
+      if (piece) {
+        const color = piece === piece.toUpperCase() ? 'w' : 'b';
+        div.textContent = PIECES[piece.toUpperCase()];
+        div.classList.add('piece-' + color);
+      }
+      // coords
+      if (fi === 0) {
+        const c = document.createElement('span');
+        c.className = 'coord rank';
+        c.textContent = rankNum;
+        div.appendChild(c);
+      }
+      if (ri === 7) {
+        const c = document.createElement('span');
+        c.className = 'coord file';
+        c.textContent = fileChar;
+        div.appendChild(c);
+      }
+      board.appendChild(div);
+    }
+  }
+}
+
+function renderMoveList() {
+  const ml = document.getElementById('movelist');
+  if (state.history.length === 0) {
+    ml.innerHTML = '<span class="empty-ml">no moves yet — click a candidate →</span>';
+    return;
+  }
+  let html = '';
+  state.history.forEach((m, i) => {
+    if (i % 2 === 0) html += `<span class="moveno">${i/2 + 1}.</span>`;
+    const cls = i === state.history.length - 1 ? 'ply current' : 'ply';
+    html += `<span class="${cls}" data-i="${i}">${m.san}</span>`;
+  });
+  ml.innerHTML = html;
+  ml.querySelectorAll('.ply').forEach(el => {
+    el.onclick = () => {
+      const i = +el.dataset.i;
+      state.history = state.history.slice(0, i + 1);
+      rebuildGame();
+      renderAll();
+      fetchAndRender();
+    };
+  });
+}
+
+function rebuildGame() {
+  state.game = new Chess();
+  for (const m of state.history) state.game.move(m.san);
+}
+
+// ============== API ==============
+// ============== LICHESS TOKEN ==============
+function getToken() {
+  return localStorage.getItem('lichess_token') || '';
+}
+function setToken(t) {
+  if (t) localStorage.setItem('lichess_token', t);
+  else localStorage.removeItem('lichess_token');
+}
+function authHeaders() {
+  const t = getToken();
+  return t ? { 'Authorization': 'Bearer ' + t } : {};
+}
+
+async function fetchExplorer() {
+  if (state.speeds.size === 0 || state.ratings.size === 0) return null;
+  const speeds = [...state.speeds].join(',');
+  const ratings = [...state.ratings].join(',');
+  const play = state.history.map(m => m.uci).join(',');
+  const key = `${speeds}|${ratings}|${play}`;
+  if (state.cache.has(key)) return state.cache.get(key);
+
+  // 빈 play일 땐 파라미터 자체를 생략 (시작 포지션 기본값)
+  const params = new URLSearchParams({
+    variant: 'standard',
+    speeds, ratings,
+    topGames: '0', recentGames: '0', moves: '20',
+  });
+  if (play) params.set('play', play);
+
+  const url = `https://explorer.lichess.ovh/lichess?${params.toString()}`;
+  try {
+    const res = await fetch(url, { headers: authHeaders() });
+    if (!res.ok) {
+      if (res.status === 401) showAuthWarning();
+      else if (res.status === 429) console.warn('Rate limited (429) - wait a moment');
+      throw new Error('API ' + res.status);
+    }
+    const data = await res.json();
+    state.cache.set(key, data);
+    return data;
+  } catch (e) {
+    if (location.protocol === 'file:') showFileProtocolWarning();
+    console.error('API error', e);
+    return null;
+  }
+}
+
+function showAuthWarning() {
+  if (document.getElementById('auth-warn')) return;
+  const div = document.createElement('div');
+  div.id = 'auth-warn';
+  div.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#7a1414;color:#fff;padding:14px 20px;font-size:12px;z-index:9999;text-align:center;letter-spacing:0.5px;line-height:1.6;border-bottom:2px solid #d97706;';
+  div.innerHTML = `
+    <strong style="font-size:13px;">⚠ Lichess API 401 — 토큰 필요 (2026.2부터 인증 필수)</strong><br>
+    좌측 사이드바 하단 [Lichess API 토큰] 섹션에서 토큰 발급 후 입력하세요.<br>
+    <span style="font-size:10px;opacity:0.85;">권한 체크박스 모두 빈 상태로 발급해도 explorer 호출은 작동합니다.</span>
+    <span onclick="this.parentElement.remove()" style="position:absolute;top:8px;right:14px;cursor:pointer;font-size:18px;">×</span>
+  `;
+  document.body.appendChild(div);
+}
+
+function showFileProtocolWarning() {
+  if (document.getElementById('file-warn')) return;
+  const div = document.createElement('div');
+  div.id = 'file-warn';
+  div.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#7a1414;color:#fff;padding:14px 20px;font-size:12px;z-index:9999;text-align:center;letter-spacing:0.5px;line-height:1.6;border-bottom:2px solid #d97706;';
+  div.innerHTML = `
+    <strong style="font-size:13px;">⚠ Lichess API가 file:// 직접 열기를 차단합니다 (401)</strong><br>
+    같은 폴더의 <code style="background:#000;padding:2px 6px;">start.bat</code>을 더블클릭해서 로컬 서버로 여세요. (Python 필요 — 없으면 python.org에서 설치)<br>
+    <span style="font-size:10px;opacity:0.85;">또는 명령어로: <code style="background:#000;padding:2px 6px;">python -m http.server 8765</code> 실행 후 http://localhost:8765/opening_explorer.html 접속</span>
+    <span onclick="this.parentElement.remove()" style="position:absolute;top:8px;right:14px;cursor:pointer;font-size:18px;">×</span>
+  `;
+  document.body.appendChild(div);
+}
+
+// ============== TIER LOGIC ==============
+// 시점기준 임계치 계산 (baseline ± offset)
+function getThresholdsForSide(side) {
+  const baseline = state.baselines[side] ?? 50;
+  const o = state.thresholdOffsets;
+  return {
+    t1: baseline + o.t1,
+    t2: baseline + o.t2,
+    t3: baseline + o.t3,
+    t4: baseline + o.t4,
+    t5: baseline + o.t5,
+  };
+}
+
+function tierFromPct(persPct, side) {
+  // side가 명시되면 그 시점의 baseline 적용, 없으면 백 기준 (호환성)
+  const t = getThresholdsForSide(side || 'white');
+  if (persPct >= t.t1) return { key: 't1', label: '사기',   pct: persPct };
+  if (persPct >= t.t2) return { key: 't2', label: '꿀',     pct: persPct };
+  if (persPct >= t.t3) return { key: 't3', label: '좋음',   pct: persPct };
+  if (persPct >= t.t4) return { key: 't4', label: '평범',   pct: persPct };
+  if (persPct >= t.t5) return { key: 't5', label: '구림',   pct: persPct };
+  return                      { key: 't6', label: '쓰레기', pct: persPct };
+}
+
+function classifyMove(white, draws, black) {
+  const total = white + draws + black;
+  if (total < state.minGames) return null;
+  const side = effectiveSideNextMove(state.history.length);
+  const myWins = side === 'white' ? white : black;
+  let winRate;
+  if (state.bayesian) {
+    // baseline에 250 prior 추가 (시점에 따라 다름)
+    const prior = 250;
+    const baselinePct = state.baselines[side] / 100;
+    winRate = (myWins + prior * baselinePct) / (total + prior);
+  } else {
+    winRate = myWins / total;
+  }
+  const persPct = winRate * 100;
+  return tierFromPct(persPct, side);
+}
+
+function classifyPosition(white, draws, black) {
+  const total = white + draws + black;
+  if (total < state.minGames) return null;
+  const side = effectiveSide(state.history.length);
+  const myWins = side === 'white' ? white : black;
+  let winRate;
+  if (state.bayesian) {
+    const prior = 250;
+    const baselinePct = state.baselines[side] / 100;
+    winRate = (myWins + prior * baselinePct) / (total + prior);
+  } else {
+    winRate = myWins / total;
+  }
+  const persPct = winRate * 100;
+  return tierFromPct(persPct, side);
+}
+
+// ============== RENDER ==============
+async function fetchAndRender() {
+  document.getElementById('candidates').innerHTML = '<div class="loading">Loading…</div>';
+  const data = await fetchExplorer();
+  state.lastData = data;
+  renderRightPanel();
+}
+
+function renderRightPanel() {
+  const data = state.lastData;
+  const cands = document.getElementById('candidates');
+  updateSideIndicator();
+
+  // 후보 제목 — 다음 차례 시점 표시
+  const candTitle = document.getElementById('cand-title');
+  if (candTitle) {
+    const nextSide = effectiveSideNextMove(state.history.length);
+    const nextKo = nextSide === 'white' ? '백' : '흑';
+    const nextColor = nextSide === 'white' ? '#f8f3e6' : '#aaa';
+    candTitle.innerHTML = `다음 수 후보 · <span style="color:${nextColor};font-weight:700;">${nextKo}</span> 응수 평가`;
+  }
+
+  if (!data) {
+    cands.innerHTML = '<div class="empty-state">필터 비어있거나 API 오류</div>';
+    document.getElementById('stat-w').textContent = '—';
+    document.getElementById('stat-d').textContent = '—';
+    document.getElementById('stat-b').textContent = '—';
+    document.getElementById('total-games').textContent = '—';
+    document.getElementById('persp-tier').style.display = 'none';
+    return;
+  }
+
+  const total = data.white + data.draws + data.black;
+  if (total > 0) {
+    const wp = (data.white/total)*100, dp = (data.draws/total)*100, bp = (data.black/total)*100;
+    document.getElementById('stat-w').textContent = wp.toFixed(1) + '%';
+    document.getElementById('stat-d').textContent = dp.toFixed(1) + '%';
+    document.getElementById('stat-b').textContent = bp.toFixed(1) + '%';
+    const bar = document.getElementById('cur-bar');
+    bar.querySelector('.w-seg').style.width = wp + '%';
+    bar.querySelector('.d-seg').style.width = dp + '%';
+    bar.querySelector('.b-seg').style.width = bp + '%';
+  } else {
+    document.getElementById('stat-w').textContent = '—';
+    document.getElementById('stat-d').textContent = '—';
+    document.getElementById('stat-b').textContent = '—';
+  }
+  document.getElementById('total-games').textContent = total.toLocaleString();
+
+  // Opening name
+  const openingName = data.opening?.name || (state.history.length === 0 ? 'Starting Position' : '— Unnamed Position —');
+  document.getElementById('opening-name').textContent = openingName;
+  document.getElementById('eco-code').textContent = (data.opening?.eco || '—') + ' · ' + state.history.length + ' moves played';
+
+  // Position-level tier (only when at least 1 move played)
+  const pt = document.getElementById('persp-tier');
+  if (state.history.length > 0) {
+    const tier = classifyPosition(data.white, data.draws, data.black);
+    const eff = effectiveSide(state.history.length);
+    if (tier) {
+      pt.style.display = 'block';
+      pt.className = 'persp-tier tier-' + tier.key;
+      pt.style.borderLeft = `3px solid var(--tier-${tier.key})`;
+      document.getElementById('pt-side').textContent = (eff === 'white' ? '백' : '흑') + (state.side === 'auto' ? ' · auto' : '');
+      document.getElementById('pt-label-val').textContent = tier.label;
+      document.getElementById('pt-label-val').style.color = `var(--tier-${tier.key})`;
+      document.getElementById('pt-pct').textContent = tier.pct.toFixed(1) + '% (보정 후 시점기준)';
+    } else {
+      pt.style.display = 'block';
+      pt.style.borderLeft = '3px solid var(--text-mute)';
+      document.getElementById('pt-side').textContent = (eff === 'white' ? '백' : '흑') + (state.side === 'auto' ? ' · auto' : '');
+      document.getElementById('pt-label-val').textContent = '샘플↓';
+      document.getElementById('pt-label-val').style.color = 'var(--text-mute)';
+      document.getElementById('pt-pct').textContent = `${total.toLocaleString()} < ${state.minGames}`;
+    }
+  } else {
+    pt.style.display = 'none';
+  }
+
+  // Candidate moves
+  if (!data.moves || data.moves.length === 0) {
+    cands.innerHTML = '<div class="empty-state">데이터 없음</div>';
+    return;
+  }
+
+  cands.innerHTML = '';
+  data.moves.forEach(mv => {
+    const games = mv.white + mv.draws + mv.black;
+    if (games === 0) return;
+    const tier = classifyMove(mv.white, mv.draws, mv.black);
+    const wPct = (mv.white/games)*100;
+    const dPct = (mv.draws/games)*100;
+    const bPct = (mv.black/games)*100;
+
+    const div = document.createElement('div');
+    div.className = 'candidate ' + (tier ? 'tier-' + tier.key : 'tier-na');
+    div.innerHTML = `
+      <div class="cand-san">${mv.san}</div>
+      <div class="cand-tier ${tier ? 'tier-'+tier.key : ''}">${tier ? tier.label : '샘플↓'}</div>
+      <div class="cand-bar">
+        <div class="w-seg" style="width:${wPct}%"></div>
+        <div class="d-seg" style="width:${dPct}%"></div>
+        <div class="b-seg" style="width:${bPct}%"></div>
+      </div>
+      <div class="cand-games">${games.toLocaleString()}</div>
+    `;
+    div.onclick = () => {
+      const move = state.game.move(mv.san);
+      if (!move) return;
+      const uci = move.from + move.to + (move.promotion || '');
+      state.history.push({ san: move.san, uci, fenAfter: state.game.fen() });
+      renderAll();
+      fetchAndRender();
+    };
+    cands.appendChild(div);
+  });
+}
+
+function renderAll() {
+  renderBoard();
+  renderMoveList();
+}
+
+// ============== UI WIRING ==============
+function buildRatings() {
+  const grid = document.getElementById('ratings');
+  grid.innerHTML = '';
+  RATING_BUCKETS.forEach(r => {
+    const btn = document.createElement('button');
+    btn.className = 'mini-btn' + (state.ratings.has(r) ? ' active' : '');
+    btn.textContent = r;
+    btn.onclick = () => {
+      if (state.ratings.has(r)) state.ratings.delete(r);
+      else state.ratings.add(r);
+      btn.classList.toggle('active');
+      state.cache.clear();
+      fetchAndRender();
+      // tierlist: try load matching cache, else clear
+      const cached = loadTierlistCache();
+      TIERLIST.results = cached ? cached.results : null;
+      renderTierlist();
+    };
+    grid.appendChild(btn);
+  });
+}
+
+function buildSpeeds() {
+  const grid = document.getElementById('speeds');
+  grid.innerHTML = '';
+  SPEED_TYPES.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'mini-btn' + (state.speeds.has(s) ? ' active' : '');
+    btn.textContent = SPEED_LABELS[s];
+    btn.onclick = () => {
+      if (state.speeds.has(s)) state.speeds.delete(s);
+      else state.speeds.add(s);
+      btn.classList.toggle('active');
+      state.cache.clear();
+      fetchAndRender();
+      const cached = loadTierlistCache();
+      TIERLIST.results = cached ? cached.results : null;
+      renderTierlist();
+    };
+    grid.appendChild(btn);
+  });
+}
+
+function updateSideIndicator() {
+  const ind = document.getElementById('side-indicator');
+  if (!ind) return;
+  if (state.side === 'auto') {
+    const ply = state.history.length;
+    if (ply === 0) {
+      ind.innerHTML = 'auto · 시작 → <span style="color:#f8f3e6;">백</span> 차례';
+    } else {
+      const lastSan = state.history[ply - 1].san;
+      const posSide = effectiveSidePosition(ply);
+      const nextSide = effectiveSideNextMove(ply);
+      const posKo = posSide === 'white' ? '백' : '흑';
+      const nextKo = nextSide === 'white' ? '백' : '흑';
+      const posColor = posSide === 'white' ? '#f8f3e6' : '#aaa';
+      const nextColor = nextSide === 'white' ? '#f8f3e6' : '#aaa';
+      ind.innerHTML = `auto · <span style="color:${posColor};">${posKo}</span> ${lastSan} 둠 → <span style="color:${nextColor};">${nextKo}</span> 응수 차례`;
+    }
+  } else {
+    ind.textContent = `강제 ${state.side === 'white' ? '백' : '흑'} 시점`;
+  }
+}
+
+document.querySelectorAll('.toggle-btn[data-side]').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('.toggle-btn[data-side]').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    state.side = b.dataset.side;
+    // 명시적 시점일 때만 보드 자동 회전; auto는 사용자 Flip에 맡김
+    if (state.side === 'white') state.flipped = false;
+    else if (state.side === 'black') state.flipped = true;
+    updateSideIndicator();
+    renderAll();
+    renderRightPanel();
+    if (TIERLIST.results) renderTierlist();
+  };
+});
+
+document.getElementById('rating-all').onclick = () => {
+  const allOn = state.ratings.size === RATING_BUCKETS.length;
+  state.ratings = new Set(allOn ? [] : RATING_BUCKETS);
+  buildRatings();
+  state.cache.clear();
+  fetchAndRender();
+};
+
+['t1','t2','t3','t4','t5'].forEach(k => {
+  const sl = document.getElementById('th-'+k);
+  const val = document.getElementById('th-'+k+'-val');
+  sl.oninput = () => {
+    state.thresholdOffsets[k] = +sl.value;
+    const v = +sl.value;
+    val.textContent = (v >= 0 ? '+' : '') + v.toFixed(1);
+    renderRightPanel();
+    if (TIERLIST.results) renderTierlist();
+  };
+});
+document.getElementById('min-games').oninput = (e) => {
+  state.minGames = +e.target.value;
+  document.getElementById('min-games-val').textContent = e.target.value;
+  renderRightPanel();
+  if (TIERLIST.results) renderTierlist();
+};
+document.getElementById('bayesian').onchange = (e) => {
+  state.bayesian = e.target.checked;
+  renderRightPanel();
+  if (TIERLIST.results) renderTierlist();
+};
+
+document.getElementById('btn-back').onclick = () => {
+  if (state.history.length === 0) return;
+  state.history.pop();
+  rebuildGame();
+  renderAll();
+  fetchAndRender();
+};
+document.getElementById('btn-reset').onclick = () => {
+  state.history = [];
+  rebuildGame();
+  renderAll();
+  fetchAndRender();
+};
+document.getElementById('btn-flip').onclick = () => {
+  state.flipped = !state.flipped;
+  renderAll();
+};
+
+// keyboard
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowLeft') document.getElementById('btn-back').click();
+  if (e.key === 'r' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); document.getElementById('btn-reset').click(); }
+});
+
+// ============== USER OPENINGS UI ==============
+function refreshUserListSummary() {
+  const sum = document.getElementById('user-list-summary');
+  if (sum) sum.textContent = `시드 ${OPENINGS.length} · 내 라인 ${USER_OPENINGS.length}`;
+  renderUserList();
+}
+
+function renderUserList() {
+  const ul = document.getElementById('user-list');
+  if (!ul) return;
+  if (USER_OPENINGS.length === 0) {
+    ul.innerHTML = '<div class="user-list-empty">아직 추가한 라인 없음</div>';
+    return;
+  }
+  ul.innerHTML = USER_OPENINGS.map((op, i) => `
+    <div class="user-list-item">
+      <div style="flex:1;min-width:0;">
+        <div class="uli-name">${op.ko || op.en}</div>
+        <div class="uli-meta">${op.eco || '—'} · ${op.uci.length} ply</div>
+      </div>
+      <button class="uli-del" data-idx="${i}">삭제</button>
+    </div>
+  `).join('');
+  ul.querySelectorAll('.uli-del').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const i = +btn.dataset.idx;
+      const op = USER_OPENINGS[i];
+      if (!confirm(`"${op.ko || op.en}" 삭제할까?`)) return;
+      USER_OPENINGS.splice(i, 1);
+      saveUserOpenings();
+      refreshUserListSummary();
+      // 티어리스트 캐시도 무효화 (이 라인이 들어가있을 수 있음)
+      const cached = loadTierlistCache();
+      if (cached) {
+        const filtered = cached.results.filter(r => r.op.en !== op.en);
+        if (filtered.length !== cached.results.length) {
+          saveTierlistCache(filtered);
+          if (TIERLIST.results) {
+            TIERLIST.results = TIERLIST.results.filter(r => r.op.en !== op.en);
+            renderTierlist();
+          }
+        }
+      }
+    };
+  });
+}
+
+// 모달 상태
+let modalMode = 'pgn';  // 'pgn' | 'current'
+function openAddModal() {
+  document.getElementById('modal-add').classList.add('show');
+  document.getElementById('modal-err').classList.remove('show');
+  document.getElementById('modal-ok').classList.remove('show');
+  document.getElementById('m-ko').value = '';
+  document.getElementById('m-en').value = '';
+  document.getElementById('m-eco').value = '';
+  document.getElementById('m-pgn').value = '';
+  document.getElementById('m-aliases').value = '';
+  setModalMode('pgn');
+  setTimeout(() => document.getElementById('m-ko').focus(), 50);
+}
+function closeAddModal() {
+  document.getElementById('modal-add').classList.remove('show');
+}
+function setModalMode(mode) {
+  modalMode = mode;
+  document.getElementById('m-tab-pgn').classList.toggle('active', mode === 'pgn');
+  document.getElementById('m-tab-current').classList.toggle('active', mode === 'current');
+  const pgnArea = document.getElementById('m-pgn');
+  const hint = document.getElementById('m-move-hint');
+  if (mode === 'current') {
+    const cur = state.history.map(m => m.san).join(' ');
+    pgnArea.value = cur || '(현재 보드가 시작 위치 — 탐색 모드에서 수를 둔 다음 다시 시도)';
+    pgnArea.disabled = true;
+    hint.textContent = `현재 보드의 ${state.history.length}수를 자동으로 사용합니다. 탐색 모드 보드 상태가 그대로 들어감.`;
+  } else {
+    pgnArea.value = '';
+    pgnArea.disabled = false;
+    hint.textContent = 'PGN을 붙여넣으세요. 결과(1-0 등), 주석, 변형은 자동 제거됨.';
+  }
+}
+
+function showModalError(msg) {
+  const el = document.getElementById('modal-err');
+  el.textContent = msg;
+  el.classList.add('show');
+  document.getElementById('modal-ok').classList.remove('show');
+}
+function showModalSuccess(msg) {
+  const el = document.getElementById('modal-ok');
+  el.textContent = msg;
+  el.classList.add('show');
+  document.getElementById('modal-err').classList.remove('show');
+}
+
+function saveModalLine() {
+  const ko = document.getElementById('m-ko').value.trim();
+  const en = document.getElementById('m-en').value.trim();
+  const eco = document.getElementById('m-eco').value.trim().toUpperCase();
+  const pgn = document.getElementById('m-pgn').value.trim();
+  const aliasesTxt = document.getElementById('m-aliases').value.trim();
+
+  if (!ko) return showModalError('한글명을 입력하세요.');
+  if (!en) return showModalError('영문명을 입력하세요.');
+  if (eco && !/^[A-E]\d{2}$/.test(eco)) return showModalError('ECO 코드 형식: A00 ~ E99 (예: B28). 비워둬도 됩니다.');
+
+  let uci;
+  try {
+    if (modalMode === 'current') {
+      if (state.history.length === 0) return showModalError('현재 보드가 시작 위치입니다. 탐색 모드에서 수를 둔 후 다시 시도하세요.');
+      uci = state.history.map(m => m.uci);
+    } else {
+      if (!pgn) return showModalError('PGN을 입력하세요.');
+      uci = pgnToUci(pgn);
+    }
+    if (uci.length === 0) return showModalError('유효한 무브가 없습니다.');
+    validateUciSequence(uci);
+  } catch (e) {
+    return showModalError(e.message);
+  }
+
+  // 중복 체크 — 같은 영문명 사용자 라인이 이미 있으면 덮어쓰기 확인
+  const existingIdx = USER_OPENINGS.findIndex(u => u.en === en);
+  if (existingIdx !== -1) {
+    if (!confirm(`"${en}" 이미 추가돼있음. 덮어쓸까?`)) return;
+  }
+
+  const aliases = aliasesTxt ? aliasesTxt.split(',').map(a => a.trim()).filter(Boolean) : [];
+
+  const newOp = { ko, en, eco: eco || '—', uci, aliases };
+  if (existingIdx !== -1) USER_OPENINGS[existingIdx] = newOp;
+  else USER_OPENINGS.push(newOp);
+
+  saveUserOpenings();
+  refreshUserListSummary();
+  showModalSuccess(`"${ko}" 저장됨 — ${uci.length}수`);
+
+  // 티어리스트 캐시에 추가 (재수집 안 해도 한 줄 즉시 추가)
+  const cached = loadTierlistCache();
+  if (cached) {
+    const otherIdx = cached.results.findIndex(r => r.op.en === en);
+    // 새로 추가한 라인은 통계가 없으므로 placeholder만 — 다음 [전체 통계 수집] 또는 단건 fetch 필요
+    fetchOneOpening(newOp).then(d => {
+      const entry = { op: { ...newOp, _user: true }, white: d.white||0, draws: d.draws||0, black: d.black||0 };
+      if (otherIdx !== -1) cached.results[otherIdx] = entry;
+      else cached.results.push(entry);
+      saveTierlistCache(cached.results);
+      if (TIERLIST.results) {
+        const i2 = TIERLIST.results.findIndex(r => r.op.en === en);
+        if (i2 !== -1) TIERLIST.results[i2] = entry;
+        else TIERLIST.results.push(entry);
+        renderTierlist();
+      }
+    }).catch(e => console.warn('Failed to fetch stats for new line:', e));
+  }
+
+  setTimeout(closeAddModal, 800);
+}
+
+function exportUserOpenings() {
+  if (USER_OPENINGS.length === 0) {
+    alert('내보낼 라인이 없습니다.');
+    return;
+  }
+  const blob = new Blob([JSON.stringify(USER_OPENINGS, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const ts = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `my-openings-${ts}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importUserOpenings(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!Array.isArray(parsed)) throw new Error('JSON이 배열 형식이 아닙니다.');
+      const valid = [];
+      const errors = [];
+      for (const op of parsed) {
+        if (!op || typeof op.ko !== 'string' || typeof op.en !== 'string' || !Array.isArray(op.uci)) {
+          errors.push('필수 필드 누락 (ko, en, uci)');
+          continue;
+        }
+        try {
+          validateUciSequence(op.uci);
+          valid.push(op);
+        } catch (err) {
+          errors.push(`${op.en}: ${err.message}`);
+        }
+      }
+      if (valid.length === 0) {
+        alert('불러올 유효 라인이 없음:\n' + errors.join('\n'));
+        return;
+      }
+      const mode = confirm(`${valid.length}개 라인 발견 (${errors.length}개 무효).\n\n[확인] 기존에 추가하기 (병합)\n[취소] 기존 모두 삭제 후 교체`);
+      if (mode) {
+        // 병합 — 같은 en은 덮어쓰기
+        for (const op of valid) {
+          const idx = USER_OPENINGS.findIndex(u => u.en === op.en);
+          if (idx !== -1) USER_OPENINGS[idx] = op;
+          else USER_OPENINGS.push(op);
+        }
+      } else {
+        USER_OPENINGS = valid;
+      }
+      saveUserOpenings();
+      refreshUserListSummary();
+      alert(`완료. 현재 ${USER_OPENINGS.length}개 사용자 라인.${errors.length > 0 ? '\n\n무효 라인 ' + errors.length + '개 제외됨.' : ''}`);
+      // 캐시 무효화 (새 라인의 통계는 다음 수집 시)
+    } catch (e) {
+      alert('JSON 파싱 실패: ' + e.message);
+    }
+  };
+  reader.readAsText(file);
+}
+// ============== END USER OPENINGS UI ==============
+
+// ============== INIT ==============
+loadUserOpenings();
+validateAllOpenings();
+buildRatings();
+buildSpeeds();
+refreshUserListSummary();
+
+// User openings UI wiring
+document.getElementById('btn-add-line').onclick = openAddModal;
+document.getElementById('btn-export').onclick = exportUserOpenings;
+document.getElementById('btn-import').onclick = () => document.getElementById('import-file').click();
+document.getElementById('import-file').onchange = (e) => {
+  if (e.target.files && e.target.files[0]) {
+    importUserOpenings(e.target.files[0]);
+    e.target.value = '';  // 같은 파일 재선택 가능하게
+  }
+};
+document.getElementById('btn-toggle-list').onclick = () => {
+  const ul = document.getElementById('user-list');
+  ul.style.display = ul.style.display === 'none' ? 'block' : 'none';
+  if (ul.style.display === 'block') renderUserList();
+};
+document.getElementById('m-cancel').onclick = closeAddModal;
+document.getElementById('m-save').onclick = saveModalLine;
+document.getElementById('m-tab-pgn').onclick = () => setModalMode('pgn');
+document.getElementById('m-tab-current').onclick = () => setModalMode('current');
+document.getElementById('modal-add').addEventListener('click', (e) => {
+  if (e.target.id === 'modal-add') closeAddModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('modal-add').classList.contains('show')) closeAddModal();
+});
+
+// Token UI wiring
+const tokenInput = document.getElementById('lichess-token');
+const tokenStatus = document.getElementById('token-status');
+function refreshTokenStatus() {
+  const t = getToken();
+  if (t) {
+    tokenStatus.textContent = '✓ 설정됨 (' + t.slice(0, 6) + '...' + t.slice(-3) + ')';
+    tokenStatus.style.color = 'var(--tier-honey)';
+  } else {
+    tokenStatus.textContent = '미설정 — 401 발생';
+    tokenStatus.style.color = 'var(--tier-broken)';
+  }
+}
+refreshTokenStatus();
+document.getElementById('token-save').onclick = () => {
+  const v = tokenInput.value.trim();
+  if (!v) { alert('토큰을 입력하세요'); return; }
+  setToken(v);
+  tokenInput.value = '';
+  refreshTokenStatus();
+  // 경고 배너 있으면 제거하고 재시도
+  const warn = document.getElementById('auth-warn');
+  if (warn) warn.remove();
+  state.cache.clear();
+  fetchAndRender();
+};
+document.getElementById('token-clear').onclick = () => {
+  setToken('');
+  tokenInput.value = '';
+  refreshTokenStatus();
+  state.cache.clear();
+};
+tokenInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('token-save').click();
+});
+
+// Mode tab wiring
+document.querySelectorAll('.mode-tab').forEach(tab => {
+  tab.onclick = () => switchMode(tab.dataset.mode);
+});
+// Tierlist controls
+document.getElementById('tl-fetch').onclick = fetchAllOpenings;
+document.getElementById('tl-sort').onchange = renderTierlist;
+document.getElementById('tl-filter').oninput = renderTierlist;
+
+// Search wiring
+const searchInput = document.getElementById('search-input');
+const searchBox = document.getElementById('search-results');
+let searchActiveResults = [];
+searchInput.addEventListener('input', (e) => {
+  const results = searchOpenings(e.target.value);
+  searchActiveResults = results;
+  if (results.length === 0) { searchBox.classList.remove('show'); searchBox.innerHTML = ''; return; }
+  searchBox.classList.add('show');
+  searchBox.innerHTML = results.map((op, i) => `
+    <div class="search-result${op._user ? ' is-user' : ''}" data-idx="${i}">
+      <span class="sr-ko">${op.ko}</span>
+      <span class="sr-meta">${op.eco} · ${op.en}</span>
+    </div>
+  `).join('');
+  searchBox.querySelectorAll('.search-result').forEach((el, i) => {
+    el.onclick = () => {
+      jumpToOpening(searchActiveResults[i]);
+      searchInput.value = '';
+      searchBox.classList.remove('show');
+      searchBox.innerHTML = '';
+    };
+  });
+});
+searchInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && searchActiveResults.length > 0) {
+    jumpToOpening(searchActiveResults[0]);
+    searchInput.value = '';
+    searchBox.classList.remove('show');
+    searchBox.innerHTML = '';
+  }
+  if (e.key === 'Escape') {
+    searchInput.value = '';
+    searchBox.classList.remove('show');
+    searchBox.innerHTML = '';
+  }
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#search-input') && !e.target.closest('#search-results')) {
+    searchBox.classList.remove('show');
+  }
+});
+
+renderAll();
+fetchAndRender();
+</script>
+</body>
+</html>
