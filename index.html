@@ -737,6 +737,11 @@ input[type="range"]::-moz-range-thumb {
 }
 .sq.light { background: var(--board-light); }
 .sq.dark { background: var(--board-dark); }
+.sq {
+  /* iOS Safari가 체스 글리프를 컬러이모지로 매핑하는 걸 강제로 막음 */
+  font-family: 'Arial Unicode MS', 'DejaVu Sans', 'Segoe UI Symbol', sans-serif;
+  font-variant-emoji: text;  /* 신형 브라우저 */
+}
 .sq.piece-w {
   color: #f8f3e6;
   text-shadow:
@@ -1125,21 +1130,21 @@ input[type="range"]::-moz-range-thumb {
   <button class="hamburger" id="m-hamburger" aria-label="메뉴">☰</button>
   <div class="m-brand">opening tier</div>
   <div class="m-mode-tabs">
-    <button class="active" data-m-mode="explorer">탐색</button>
-    <button data-m-mode="tierlist">티어리스트</button>
+    <button data-m-mode="explorer">탐색</button>
+    <button class="active" data-m-mode="tierlist">티어리스트</button>
   </div>
 </div>
 <div class="drawer-backdrop" id="drawer-backdrop"></div>
 
-<div class="app mode-explorer" id="app">
+<div class="app mode-tierlist" id="app">
   <!-- LEFT SIDEBAR -->
   <aside class="sidebar">
     <div class="brand">opening</div>
     <div class="brand-sub">tier explorer · v0.3</div>
 
     <div class="mode-tabs">
-      <button class="mode-tab active" data-mode="explorer">탐색</button>
-      <button class="mode-tab" data-mode="tierlist">티어리스트</button>
+      <button class="mode-tab" data-mode="explorer">탐색</button>
+      <button class="mode-tab active" data-mode="tierlist">티어리스트</button>
     </div>
 
     <div class="section">
@@ -1161,13 +1166,13 @@ input[type="range"]::-moz-range-thumb {
     </div>
 
     <div class="section">
-      <div class="section-title">시점 / Perspective</div>
+      <div class="section-title">시점</div>
       <div class="toggle-group">
-        <button class="toggle-btn active" data-side="auto">자동</button>
+        <button class="toggle-btn active" data-side="auto">전체</button>
         <button class="toggle-btn" data-side="white">백</button>
         <button class="toggle-btn" data-side="black">흑</button>
       </div>
-      <div id="side-indicator" style="font-size:9px;color:var(--text-mute);letter-spacing:1.5px;text-transform:uppercase;margin-top:8px;text-align:center;">auto · 시작 = 백 시점</div>
+      <div id="side-indicator" style="font-size:10px;color:var(--text-mute);letter-spacing:0.5px;margin-top:8px;text-align:center;line-height:1.5;">전체 — 시작은 백 차례</div>
     </div>
 
     <div class="section">
@@ -1216,16 +1221,15 @@ input[type="range"]::-moz-range-thumb {
     </div>
 
     <div class="section">
-      <div class="section-title">필터</div>
+      <div class="section-title">최소 게임 수</div>
       <div class="slider-row">
         <label>최소판</label>
         <input type="range" id="min-games" min="0" max="20000" step="100" value="500">
         <span class="val" id="min-games-val">500</span>
       </div>
-      <label class="checkbox-row" style="margin-top: 10px;">
-        <input type="checkbox" id="bayesian" checked>
-        <span>베이지안 보정 (50% prior)</span>
-      </label>
+      <div style="font-size:9px;color:var(--text-mute);letter-spacing:0.5px;margin-top:6px;line-height:1.5;">
+        샘플이 이보다 적은 라인은 "샘플↓"로 분류 (통계 신뢰도 낮음)
+      </div>
     </div>
 
     <div class="section">
@@ -1274,7 +1278,7 @@ input[type="range"]::-moz-range-thumb {
     <div class="tl-header">
       <div>
         <div class="tl-title" id="tl-title-side">백 시점 티어리스트</div>
-        <div class="tl-subtitle" id="tl-subtitle">All openings · Bayesian-adjusted</div>
+        <div class="tl-subtitle" id="tl-subtitle">백이 둔 라인은 백 입장, 흑이 둔 라인은 흑 입장에서 평가</div>
       </div>
     </div>
 
@@ -1444,6 +1448,174 @@ const OPENINGS = [
   { ko:"시실리안: 윙 갬빗", en:"Sicilian Defense: Wing Gambit", eco:"B20", uci:["e2e4","c7c5","b2b4"], aliases:["wing gambit","윙 갬빗"] },
   { ko:"시실리안: 님조비치 변형", en:"Sicilian Defense: Nimzowitsch Variation", eco:"B29", uci:["e2e4","c7c5","g1f3","g8f6"], aliases:["nimzowitsch sicilian"] },
 
+  // === 사용자 요청 추가 ===
+  { ko:"시실리안: 포 나이트", en:"Sicilian Defense: Four Knights Variation", eco:"B45", uci:["e2e4","c7c5","g1f3","e7e6","d2d4","c5d4","f3d4","g8f6","b1c3","b8c6"], aliases:["four knights sicilian","포나잇","sicilian four knights"] },
+  { ko:"님조비치 시실리안", en:"Nimzowitsch Sicilian (2.Nf3 Nf6)", eco:"B29", uci:["e2e4","c7c5","g1f3","g8f6"], aliases:["nimzowitsch sicilian","님조비치 시실리안","nimzowitsch defense sicilian"] },
+  { ko:"시실리안: 크베이니스 변형", en:"Sicilian Defense: Kveinys Variation", eco:"B40", uci:["e2e4","c7c5","g1f3","e7e6","d2d4","c5d4","f3d4","d8b6"], aliases:["kveinys","크베이니스","kveinis"] },
+  { ko:"시실리안: 칼라시니코프", en:"Sicilian Defense: Kalashnikov Variation", eco:"B32", uci:["e2e4","c7c5","g1f3","b8c6","d2d4","c5d4","f3d4","e7e5","d4b5","d7d6"], aliases:["kalashnikov","칼라시니코프"] },
+  { ko:"시실리안: 하이퍼 액셀러레이티드 드래곤", en:"Sicilian Defense: Hyper-Accelerated Dragon", eco:"B27", uci:["e2e4","c7c5","g1f3","g7g6"], aliases:["hyper accelerated dragon","하이퍼엑셀드래곤","hyperaccelerated"] },
+  { ko:"시실리안: 차이니즈 드래곤", en:"Sicilian Defense: Dragon, Chinese Variation", eco:"B76", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","g7g6","c1e3","f8g7","f2f3","e8g8","d1d2","b8c6","f1c4","c8d7","e1c1","a8b8"], aliases:["chinese dragon","차이니즈드래곤","rb8 dragon"] },
+  { ko:"시실리안: 헝가리안 드래곤", en:"Sicilian Defense: Dragon, Hungarian Variation", eco:"B76", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","g7g6","c1e3","f8g7","f2f3","e8g8","d1d2","b8c6","f1c4","c8d7","e1c1","h7h5"], aliases:["hungarian dragon","헝가리안드래곤","dragon h5"] },
+  { ko:"시실리안: 보우들러 어택", en:"Sicilian Defense: Bowdler Attack", eco:"B20", uci:["e2e4","c7c5","f1c4"], aliases:["bowdler","보우들러"] },
+  { ko:"시실리안: 맥도널 어택", en:"Sicilian Defense: McDonnell Attack", eco:"B21", uci:["e2e4","c7c5","f2f4"], aliases:["mcdonnell","맥도널","mcdonnell attack"] },
+  { ko:"시실리안: 핀 변형", en:"Sicilian Defense: Pin Variation", eco:"B40", uci:["e2e4","c7c5","g1f3","e7e6","d2d4","c5d4","f3d4","g8f6","b1c3","f8b4"], aliases:["pin sicilian","sicilian pin","핀 시실리안"] },
+  { ko:"시실리안: 크람닉 변형", en:"Sicilian Defense: Kramnik Variation", eco:"B40", uci:["e2e4","c7c5","g1f3","e7e6","g2g3"], aliases:["kramnik sicilian","크람닉 시실리안"] },
+  { ko:"시실리안: 포츠머스 갬빗", en:"Sicilian Defense: Portsmouth Gambit", eco:"B20", uci:["e2e4","c7c5","g1f3","b8c6","b2b4"], aliases:["portsmouth","smirnov","포츠머스","wing gambit deferred"] },
+  // === 사용자 요청 추가 끝 ===
+
+  // === 추가 라운드 2: 1.e4 사이드라인 ===
+  // 카로칸
+  { ko:"카로칸: 판타지 변형", en:"Caro-Kann: Fantasy Variation", eco:"B12", uci:["e2e4","c7c6","d2d4","d7d5","f2f3"], aliases:["fantasy caro","tartakower attack","판타지","f3 caro"] },
+  { ko:"카로칸: 어드밴스 - 보트빈닉-카르포프", en:"Caro-Kann Advance: Botvinnik-Carpov", eco:"B12", uci:["e2e4","c7c6","d2d4","d7d5","e4e5","c8f5","g1f3","e7e6","f1e2"], aliases:["botvinnik carpov","be2 advance"] },
+  { ko:"카로칸: 액셀러레이티드 패노프", en:"Caro-Kann: Accelerated Panov", eco:"B10", uci:["e2e4","c7c6","c2c4"], aliases:["accelerated panov","엑셀파노브","accel panov"] },
+  { ko:"카로칸: 후뎁스키 갬빗", en:"Caro-Kann: Hillbilly Attack", eco:"B10", uci:["e2e4","c7c6","f1c4"], aliases:["hillbilly","bc4 caro"] },
+  { ko:"카로칸: 쇼트 변형", en:"Caro-Kann: Advance, Short Variation", eco:"B12", uci:["e2e4","c7c6","d2d4","d7d5","e4e5","c8f5","g1f3"], aliases:["short variation caro","쇼트","short caro"] },
+
+  // 프렌치 추가
+  { ko:"프렌치: 룬딘 변형", en:"French Defense: Rubinstein Variation", eco:"C10", uci:["e2e4","e7e6","d2d4","d7d5","b1c3","d5e4"], aliases:["rubinstein french","루빈슈타인 프렌치"] },
+  { ko:"프렌치: 알베르틴 갬빗", en:"French Defense: Alapin Gambit", eco:"C00", uci:["e2e4","e7e6","d2d4","d7d5","f1d3"], aliases:["alapin french","bd3 french"] },
+  { ko:"프렌치: 디아오 시스템", en:"French Defense: Two Knights", eco:"C00", uci:["e2e4","e7e6","g1f3","d7d5","b1c3"], aliases:["two knights french"] },
+  { ko:"프렌치: 윙 갬빗", en:"French Defense: Wing Gambit", eco:"C00", uci:["e2e4","e7e6","g1f3","d7d5","e4e5","c7c5","b2b4"], aliases:["wing gambit french"] },
+
+  // 피르츠/모던 추가
+  { ko:"피르츠: 150 어택", en:"Pirc Defense: 150 Attack", eco:"B07", uci:["e2e4","d7d6","d2d4","g8f6","b1c3","g7g6","c1e3"], aliases:["150 attack","pirc 150"] },
+  { ko:"피르츠: 바이런 어택", en:"Pirc Defense: Byrne Variation", eco:"B07", uci:["e2e4","d7d6","d2d4","g8f6","b1c3","g7g6","c1g5"], aliases:["byrne pirc","bg5 pirc"] },
+  { ko:"모던: 비숍 어택", en:"Modern Defense: Bishop Attack", eco:"B06", uci:["e2e4","g7g6","d2d4","f8g7","b1c3","d7d6","c1e3"], aliases:["modern bishop attack"] },
+  { ko:"라이언 디펜스 (피르츠 라이언)", en:"Pirc Defense: Lion Variation", eco:"B07", uci:["e2e4","d7d6","d2d4","g8f6","b1c3","b8d7"], aliases:["lion defense","라이언 디펜스","라이언","lion's defence"] },
+  { ko:"체크 카로 (Czech Pirc)", en:"Pirc Defense: Czech Variation", eco:"B07", uci:["e2e4","d7d6","d2d4","g8f6","b1c3","c7c6"], aliases:["czech pirc","체크 피르츠"] },
+
+  // 스칸디 추가
+  { ko:"스칸디: 아이스랜드 갬빗", en:"Scandinavian: Icelandic Gambit", eco:"B01", uci:["e2e4","d7d5","e4d5","g8f6","c2c4","e7e6"], aliases:["icelandic gambit","아이슬란딕"] },
+  { ko:"스칸디: 포츠담 변형 (Qd6)", en:"Scandinavian: Modern Variation, Qd6", eco:"B01", uci:["e2e4","d7d5","e4d5","d8d5","b1c3","d5d6"], aliases:["qd6 scandi","tiviakov","티비아코프"] },
+
+  // 알레힌 추가
+  { ko:"알레힌: 익스체인지 변형", en:"Alekhine Defense: Exchange Variation", eco:"B03", uci:["e2e4","g8f6","e4e5","f6d5","d2d4","d7d6","c2c4","d5b6","e5d6"], aliases:["exchange alekhine"] },
+  { ko:"알레힌: 카모프스키 (Voronezh)", en:"Alekhine Defense: Voronezh Variation", eco:"B04", uci:["e2e4","g8f6","e4e5","f6d5","d2d4","d7d6","g1f3","g7g6","f1c4","d5b6","c4b3","f8g7","a2a4"], aliases:["voronezh"] },
+  { ko:"알레힌: 투 폰 (Two Pawns) 어택", en:"Alekhine Defense: Two Pawns Attack", eco:"B02", uci:["e2e4","g8f6","e4e5","f6d5","c2c4","d5b6","c4c5"], aliases:["two pawns alekhine","chase variation"] },
+
+  // 1.e4 e5 추가
+  { ko:"퐁지아니 오프닝", en:"Ponziani Opening", eco:"C44", uci:["e2e4","e7e5","g1f3","b8c6","c2c3"], aliases:["ponziani","폰지아니"] },
+  { ko:"비숍스: 베르린", en:"Bishop's Opening: Berlin Defense", eco:"C24", uci:["e2e4","e7e5","f1c4","g8f6"], aliases:["berlin bishops"] },
+  { ko:"비엔나 갬빗", en:"Vienna Gambit", eco:"C28", uci:["e2e4","e7e5","b1c3","g8f6","f2f4"], aliases:["vienna gambit","비엔나갬빗"] },
+  { ko:"센터 게임: 베를린 변형", en:"Center Game: Berger Variation", eco:"C22", uci:["e2e4","e7e5","d2d4","e5d4","d1d4","b8c6","d4e3"], aliases:["berger center"] },
+  { ko:"덴마크 갬빗", en:"Danish Gambit", eco:"C21", uci:["e2e4","e7e5","d2d4","e5d4","c2c3"], aliases:["danish","덴마크갬빗"] },
+  { ko:"고링 갬빗", en:"Goring Gambit", eco:"C44", uci:["e2e4","e7e5","g1f3","b8c6","d2d4","e5d4","c2c3"], aliases:["goring","고링"] },
+  { ko:"스미스-모라 (1.e4 e5)", en:"Latvian Gambit: Mason Countergambit", eco:"C40", uci:["e2e4","e7e5","g1f3","f7f5","f3e5","d8f6"], aliases:["mason latvian"] },
+  { ko:"엘리펀트 갬빗 어셉티드", en:"Elephant Gambit: Maroczy Gambit", eco:"C40", uci:["e2e4","e7e5","g1f3","d7d5","e4d5","e5e4"], aliases:["maroczy elephant"] },
+  { ko:"네이크네스 어택", en:"King's Pawn: Napoleon Attack", eco:"C20", uci:["e2e4","e7e5","d1f3"], aliases:["napoleon attack"] },
+
+  // === 1.d4 사이드라인 ===
+  { ko:"트롬파우스키: 라프토프 변형", en:"Trompowsky Attack: Edge Variation", eco:"A45", uci:["d2d4","g8f6","c1g5","f6e4"], aliases:["edge trompowsky"] },
+  { ko:"트롬파우스키: 클래시컬", en:"Trompowsky Attack: Classical Defense", eco:"A45", uci:["d2d4","g8f6","c1g5","e7e6"], aliases:["classical trompowsky"] },
+  { ko:"리차드 디펜스 (런던 vs c5)", en:"Queen's Pawn: Symmetrical", eco:"D02", uci:["d2d4","d7d5","g1f3","g8f6","c1f4","c7c5"], aliases:["c5 london"] },
+  { ko:"스톤월 어택 (백)", en:"Stonewall Attack", eco:"D00", uci:["d2d4","d7d5","e2e3","g8f6","f1d3","c7c5","c2c3","b8c6","f2f4"], aliases:["stonewall attack","스톤월어택","스톤월 어택"] },
+  { ko:"콜 시스템: 페일링", en:"Colle System: Phildor", eco:"D05", uci:["d2d4","d7d5","g1f3","g8f6","e2e3","e7e6","f1d3"], aliases:["colle phildor"] },
+  { ko:"바라차 시스템", en:"Barry Attack", eco:"D02", uci:["d2d4","g8f6","g1f3","g7g6","b1c3","d7d5","c1f4"], aliases:["barry attack","배리"] },
+  { ko:"베네스 갬빗", en:"Veresov Attack", eco:"D01", uci:["d2d4","d7d5","b1c3","g8f6","c1g5"], aliases:["veresov","베레소프"] },
+  { ko:"블랙마-디머 갬빗", en:"Blackmar-Diemer Gambit", eco:"D00", uci:["d2d4","d7d5","e2e4"], aliases:["blackmar diemer","bdg","블랙마디머"] },
+  { ko:"리처드 라이티 갬빗", en:"Richter-Veresov Attack", eco:"D01", uci:["d2d4","g8f6","b1c3","d7d5","c1g5"], aliases:["richter veresov"] },
+
+  // QGD/슬라브 추가
+  { ko:"QGD: 올빈 카운터갬빗", en:"Queen's Gambit Declined: Albin Countergambit", eco:"D08", uci:["d2d4","d7d5","c2c4","e7e5"], aliases:["albin","올빈"] },
+  { ko:"QGD: 마샬 디펜스", en:"QGD: Marshall Defense", eco:"D06", uci:["d2d4","d7d5","c2c4","g8f6"], aliases:["marshall qgd"] },
+  { ko:"QGD: 발틱 디펜스", en:"QGD: Baltic Defense", eco:"D02", uci:["d2d4","d7d5","c2c4","c8f5"], aliases:["baltic","발틱"] },
+  { ko:"QGD: 차터드 디펜스", en:"QGD: Chigorin Defense, Janowski-Larsen", eco:"D07", uci:["d2d4","d7d5","c2c4","b8c6","g1f3"], aliases:["janowski larsen chigorin"] },
+  { ko:"QGA: 클래시컬", en:"QGA: Classical Defense", eco:"D27", uci:["d2d4","d7d5","c2c4","d5c4","g1f3","g8f6","e2e3","e7e6","f1c4","c7c5"], aliases:["classical qga"] },
+  { ko:"QGA: 센터 변형", en:"QGA: Central Variation", eco:"D20", uci:["d2d4","d7d5","c2c4","d5c4","e2e4"], aliases:["central qga","e4 qga"] },
+  { ko:"슬라브: 윈터 변형", en:"Slav: Winawer Counter-Gambit", eco:"D10", uci:["d2d4","d7d5","c2c4","c7c6","b1c3","e7e5"], aliases:["winawer slav"] },
+  { ko:"세미슬라브: 마샬 갬빗", en:"Semi-Slav: Marshall Gambit", eco:"D31", uci:["d2d4","d7d5","c2c4","e7e6","b1c3","c7c6","e2e4"], aliases:["marshall gambit semi-slav"] },
+
+  // 인디안 추가
+  { ko:"올드 인디안 디펜스", en:"Old Indian Defense", eco:"A53", uci:["d2d4","g8f6","c2c4","d7d6"], aliases:["old indian","올드 인디안"] },
+  { ko:"버지 디펜스 (Black Knights' Tango)", en:"Black Knights' Tango", eco:"A50", uci:["d2d4","g8f6","c2c4","b8c6"], aliases:["mexican defense","tango","멕시칸"] },
+  { ko:"부다페스트 갬빗", en:"Budapest Gambit", eco:"A51", uci:["d2d4","g8f6","c2c4","e7e5"], aliases:["budapest","부다페스트"] },
+  { ko:"블루멘펠트 갬빗", en:"Blumenfeld Gambit", eco:"E10", uci:["d2d4","g8f6","c2c4","e7e6","g1f3","c7c5","d4d5","b7b5"], aliases:["blumenfeld","블루멘펠트"] },
+  { ko:"카탈란 오프닝", en:"Catalan Opening", eco:"E00", uci:["d2d4","g8f6","c2c4","e7e6","g2g3"], aliases:["catalan","카탈란"] },
+  { ko:"카탈란: 클로즈드", en:"Catalan: Closed", eco:"E07", uci:["d2d4","g8f6","c2c4","e7e6","g2g3","d7d5","f1g2","f8e7","g1f3","e8g8"], aliases:["closed catalan"] },
+  { ko:"카탈란: 오픈", en:"Catalan: Open", eco:"E04", uci:["d2d4","g8f6","c2c4","e7e6","g2g3","d7d5","f1g2","d5c4"], aliases:["open catalan"] },
+
+  // KID/그륀펠트 추가
+  { ko:"KID: 아베르바흐 변형", en:"King's Indian: Averbakh Variation", eco:"E73", uci:["d2d4","g8f6","c2c4","g7g6","b1c3","f8g7","e2e4","d7d6","f1e2","e8g8","c1g5"], aliases:["averbakh","아베르바흐"] },
+  { ko:"KID: 피아노미스 어택", en:"King's Indian: Fianchetto Variation", eco:"E60", uci:["d2d4","g8f6","c2c4","g7g6","g2g3"], aliases:["fianchetto kid","피아네토 kid"] },
+  { ko:"KID: 4번째 폰", en:"King's Indian: Orthodox", eco:"E94", uci:["d2d4","g8f6","c2c4","g7g6","b1c3","f8g7","e2e4","d7d6","g1f3","e8g8","f1e2","b8d7"], aliases:["orthodox kid"] },
+  { ko:"그륀펠트: 익스체인지 클래시컬", en:"Grünfeld: Exchange, Classical", eco:"D86", uci:["d2d4","g8f6","c2c4","g7g6","b1c3","d7d5","c4d5","f6d5","e2e4","d5c3","b2c3","f8g7","f1c4"], aliases:["classical exchange grunfeld"] },
+  { ko:"그륀펠트: 4.Bf4", en:"Grünfeld: Three Knights, Hungarian Attack", eco:"D90", uci:["d2d4","g8f6","c2c4","g7g6","b1c3","d7d5","c1f4"], aliases:["bf4 grunfeld","hungarian attack grunfeld"] },
+  { ko:"그륀펠트: 5.Bg5", en:"Grünfeld: Three Knights, Petrosian System", eco:"D91", uci:["d2d4","g8f6","c2c4","g7g6","b1c3","d7d5","c1g5"], aliases:["petrosian grunfeld","bg5 grunfeld"] },
+
+  // 님조 추가
+  { ko:"님조: 자이체프 변형", en:"Nimzo-Indian: Three Knights", eco:"E21", uci:["d2d4","g8f6","c2c4","e7e6","b1c3","f8b4","g1f3"], aliases:["three knights nimzo"] },
+  { ko:"님조: 후뉴 변형", en:"Nimzo-Indian: Hübner Variation", eco:"E41", uci:["d2d4","g8f6","c2c4","e7e6","b1c3","f8b4","e2e3","c7c5","f1d3","b8c6","g1f3","b4c3","b2c3","d7d6"], aliases:["hubner nimzo","후뉴"] },
+  { ko:"님조: 제거 변형 (Saemisch)", en:"Nimzo-Indian: Sämisch, Keres Variation", eco:"E25", uci:["d2d4","g8f6","c2c4","e7e6","b1c3","f8b4","a2a3","b4c3","b2c3","c7c5","f2f3"], aliases:["keres samisch nimzo"] },
+
+  // 베노니/벤코 추가
+  { ko:"베노니: 타이마노프 어택", en:"Modern Benoni: Taimanov Attack", eco:"A67", uci:["d2d4","g8f6","c2c4","c7c5","d4d5","e7e6","b1c3","e6d5","c4d5","d7d6","e2e4","g7g6","f1b5"], aliases:["taimanov benoni"] },
+  { ko:"베노니: 클래시컬", en:"Modern Benoni: Classical Variation", eco:"A70", uci:["d2d4","g8f6","c2c4","c7c5","d4d5","e7e6","b1c3","e6d5","c4d5","d7d6","e2e4","g7g6","g1f3"], aliases:["classical benoni"] },
+  { ko:"벤코 갬빗 어셉티드", en:"Benko Gambit Accepted", eco:"A58", uci:["d2d4","g8f6","c2c4","c7c5","d4d5","b7b5","c4b5","a7a6","b5a6"], aliases:["accepted benko"] },
+  { ko:"벤코 갬빗 디클라인드", en:"Benko Gambit Declined", eco:"A57", uci:["d2d4","g8f6","c2c4","c7c5","d4d5","b7b5","b1c3"], aliases:["declined benko"] },
+
+  // === 1.플랭크 (영어/레티/버드/라르센) 추가 ===
+  // 잉글리시
+  { ko:"잉글리시: 4 나이트", en:"English Opening: Four Knights", eco:"A28", uci:["c2c4","e7e5","b1c3","g8f6","g1f3","b8c6"], aliases:["four knights english"] },
+  { ko:"잉글리시: 보텀 변형", en:"English: Botvinnik System", eco:"A26", uci:["c2c4","e7e5","b1c3","b8c6","g2g3","g7g6","f1g2","f8g7","e2e4","d7d6","g1e2"], aliases:["botvinnik english"] },
+  { ko:"잉글리시: 시메트리컬, 헤지호그", en:"English: Symmetrical, Hedgehog", eco:"A30", uci:["c2c4","c7c5","g1f3","g8f6","g2g3","b7b6","f1g2","c8b7"], aliases:["hedgehog english","헤지호그"] },
+  { ko:"잉글리시: 시메트리컬, 도라 변형", en:"English: Symmetrical, Two Knights", eco:"A37", uci:["c2c4","c7c5","g2g3","g7g6","f1g2","f8g7","b1c3","b8c6"], aliases:["symmetrical two knights english"] },
+  { ko:"잉글리시: 카로-칸 디펜시브", en:"English: Caro-Kann Defensive System", eco:"A11", uci:["c2c4","c7c6","g1f3","d7d5"], aliases:["caro english"] },
+  { ko:"잉글리시: 슬라브 디펜시브", en:"English: Anglo-Slav", eco:"A11", uci:["c2c4","c7c6","g1f3","g8f6","e2e3"], aliases:["anglo slav"] },
+  { ko:"잉글리시: 안티-니므조-인디안", en:"English: Anti-Benoni", eco:"A31", uci:["c2c4","c7c5","g1f3","g8f6","d2d4","c5d4","f3d4"], aliases:["anti benoni english"] },
+
+  // 레티
+  { ko:"레티: 어드밴스 변형", en:"Réti Opening: Advance Variation", eco:"A09", uci:["g1f3","d7d5","c2c4","d5d4"], aliases:["advance reti"] },
+  { ko:"레티: 메인 라인", en:"Réti Opening: Main Line", eco:"A09", uci:["g1f3","d7d5","c2c4","d5c4"], aliases:["main reti","reti accepted"] },
+  { ko:"레티: 영토 변형 (King's Indian Attack)", en:"King's Indian Attack", eco:"A07", uci:["g1f3","d7d5","g2g3"], aliases:["kia","kings indian attack","킹스인디언어택"] },
+  { ko:"레티: 폴리 시스템", en:"Réti: New York System", eco:"A06", uci:["g1f3","d7d5","b2b3"], aliases:["new york reti","b3 reti"] },
+
+  // 버드 오프닝
+  { ko:"버드: 리버스 더치 레닌그라드", en:"Bird's Opening: Leningrad Variation", eco:"A02", uci:["f2f4","g8f6","g1f3","g7g6","e2e3","f8g7","b2b3"], aliases:["leningrad bird","reversed leningrad","리버스레닌그라드"] },
+  { ko:"버드: 프롬 갬빗", en:"Bird's Opening: From's Gambit", eco:"A02", uci:["f2f4","e7e5"], aliases:["from gambit","froms gambit","프롬갬빗"] },
+  { ko:"버드: 더블 폰 어택", en:"Bird's Opening: Williams Gambit", eco:"A02", uci:["f2f4","d7d5","g1f3","g8f6","e2e3","g7g6","b2b4"], aliases:["williams bird"] },
+  { ko:"버드: 사이즐러 어택", en:"Bird's Opening: Schlechter Gambit", eco:"A02", uci:["f2f4","d7d5","g1f3","g8f6","b2b3"], aliases:["schlechter bird"] },
+
+  // 라르센 추가
+  { ko:"라르센: 클래시컬 디펜스", en:"Nimzo-Larsen Attack: Classical", eco:"A01", uci:["b2b3","e7e5"], aliases:["classical larsen"] },
+  { ko:"라르센: 인디안 디펜스", en:"Nimzo-Larsen Attack: Indian", eco:"A01", uci:["b2b3","g8f6"], aliases:["indian larsen"] },
+
+  // 더치 추가
+  { ko:"더치: 핀 변형", en:"Dutch Defense: Hopton Attack", eco:"A80", uci:["d2d4","f7f5","c1g5"], aliases:["hopton dutch"] },
+  { ko:"더치: 알라핀 변형", en:"Dutch Defense: Alapin Variation", eco:"A80", uci:["d2d4","f7f5","g1f3","g8f6","b1c3"], aliases:["alapin dutch"] },
+
+  // === 트릭/함정/희귀 ===
+  { ko:"본클라우드 어택", en:"Bongcloud Attack", eco:"C20", uci:["e2e4","e7e5","e1e2"], aliases:["bongcloud","bong cloud","본클라우드"] },
+  { ko:"할로윈 갬빗", en:"Halloween Gambit", eco:"C46", uci:["e2e4","e7e5","g1f3","b8c6","b1c3","g8f6","f3e5"], aliases:["halloween","할로윈"] },
+  { ko:"엥글룬드 갬빗", en:"Englund Gambit", eco:"A40", uci:["d2d4","e7e5"], aliases:["englund","엥글룬드"] },
+  { ko:"폴리쉬 (소콜스키)", en:"Polish Opening (Sokolsky)", eco:"A00", uci:["b2b4"], aliases:["polish","sokolsky","소콜스키","폴리쉬"] },
+  { ko:"그롭 어택 (1.g4)", en:"Grob's Attack", eco:"A00", uci:["g2g4"], aliases:["grob","그롭"] },
+  { ko:"버드: 리버스 그롭", en:"Reversed Grob", eco:"A00", uci:["g1f3","g7g5"], aliases:["reversed grob"] },
+  { ko:"오랑우탄 변형", en:"Polish Opening: Outflank", eco:"A00", uci:["b2b4","e7e5"], aliases:["outflank polish"] },
+  { ko:"세인트 조지 디펜스", en:"St. George Defense", eco:"B00", uci:["e2e4","a7a6"], aliases:["st george","세인트조지"] },
+  { ko:"오웬 디펜스", en:"Owen's Defense", eco:"B00", uci:["e2e4","b7b6"], aliases:["owen","오웬"] },
+  { ko:"바실리 어택 (1.Nh3)", en:"Amar Opening", eco:"A00", uci:["g1h3"], aliases:["amar","파리"] },
+  { ko:"보록스 디펜스", en:"Borg Defense", eco:"B00", uci:["e2e4","g7g5"], aliases:["borg","grob defense"] },
+  { ko:"라트비안 어셉티드", en:"Latvian Gambit Accepted", eco:"C40", uci:["e2e4","e7e5","g1f3","f7f5","e4f5"], aliases:["latvian accepted"] },
+  { ko:"이탈리안: 룻츠 어택", en:"Italian: Rousseau Gambit", eco:"C50", uci:["e2e4","e7e5","g1f3","b8c6","f1c4","f7f5"], aliases:["rousseau gambit","루소"] },
+  { ko:"퀸즈 폰: 스톤월 변형 (흑)", en:"Queen's Pawn: Stonewall (Black)", eco:"A45", uci:["d2d4","f7f5","g1f3","g8f6","e2e3","e7e6","f1d3","d7d5"], aliases:["stonewall black"] },
+  { ko:"콘드 갬빗 (1.b4 e5)", en:"Polish: Outflank, Schiffler-Sokolsky", eco:"A00", uci:["b2b4","e7e5","b4b5","f7f5"], aliases:["schiffler sokolsky"] },
+  { ko:"안데르센 어택 (Anderssen)", en:"Anderssen's Opening", eco:"A00", uci:["a2a3"], aliases:["anderssen","안데르센","a3 opening"] },
+  { ko:"메피스토펠레스 어택 (Mieses)", en:"Mieses Opening", eco:"A00", uci:["d2d3"], aliases:["mieses","미세스","d3 opening"] },
+  { ko:"반 게트의 오프닝 (1.Nc3)", en:"Van Geet Opening (Dunst)", eco:"A00", uci:["b1c3"], aliases:["van geet","dunst","nc3 opening"] },
+  { ko:"바아울 어택", en:"Barnes Opening", eco:"A00", uci:["f2f3"], aliases:["barnes","바네스"] },
+  { ko:"디플로마틱 변형", en:"Hungarian Opening", eco:"A00", uci:["g2g3"], aliases:["hungarian opening","king's fianchetto"] },
+  { ko:"사라고사", en:"Saragossa Opening", eco:"A00", uci:["c2c3"], aliases:["saragossa","사라고사"] },
+  { ko:"클렉마 어택", en:"Clemenz Opening", eco:"A00", uci:["h2h3"], aliases:["clemenz","h3 opening"] },
+  { ko:"케레스 (1.e3)", en:"Van't Kruijs Opening", eco:"A00", uci:["e2e3"], aliases:["van't kruijs","e3 opening"] },
+  { ko:"데로엘 시스템 (Schlechter)", en:"Slav: Schlechter Defense", eco:"D94", uci:["d2d4","d7d5","c2c4","c7c6","g1f3","g8f6","b1c3","g7g6"], aliases:["schlechter slav"] },
+  { ko:"해머슈미트 어택", en:"Hammerschmidt Attack", eco:"C20", uci:["e2e4","e7e5","f1e2"], aliases:["hammerschmidt","be2 e5"] },
+  { ko:"비숍스: 칼라브리아 카운터갬빗", en:"Bishop's Opening: Calabrese Countergambit", eco:"C23", uci:["e2e4","e7e5","f1c4","f7f5"], aliases:["calabrese","칼라브리아"] },
+  { ko:"비숍스: 마스헤이트 갬빗", en:"Bishop's Opening: Anderssen Gambit", eco:"C23", uci:["e2e4","e7e5","f1c4","f8c5","b2b4"], aliases:["anderssen bishops"] },
+  { ko:"필리도르: 카운터어택 (Improved Hanham)", en:"Philidor Defense: Improved Hanham", eco:"C41", uci:["e2e4","e7e5","g1f3","d7d6","d2d4","g8f6","b1c3","b8d7"], aliases:["hanham philidor","improved hanham"] },
+  { ko:"필리도르: 한홈 변형", en:"Philidor: Hanham Variation", eco:"C41", uci:["e2e4","e7e5","g1f3","d7d6","d2d4","b8d7"], aliases:["hanham"] },
+
+  // === 추가 라운드 2 끝 ===
+
   // 프렌치 분기
   { ko:"프렌치: 어드밴스 변형", en:"French Defense: Advance Variation", eco:"C02", uci:["e2e4","e7e6","d2d4","d7d5","e4e5"], aliases:["advance french","어드밴스"] },
   { ko:"프렌치: 익스체인지", en:"French Defense: Exchange Variation", eco:"C01", uci:["e2e4","e7e6","d2d4","d7d5","e4d5"], aliases:["exchange french"] },
@@ -1507,11 +1679,10 @@ const OPENINGS = [
   { ko:"이탈리안: 지우코 피아니시모", en:"Italian Game: Giuoco Pianissimo", eco:"C50", uci:["e2e4","e7e5","g1f3","b8c6","f1c4","f8c5","d2d3"], aliases:["pianissimo","피아니시모"] },
   { ko:"이탈리안: 에반스 갬빗 어셉티드", en:"Italian Game: Evans Gambit Accepted", eco:"C51", uci:["e2e4","e7e5","g1f3","b8c6","f1c4","f8c5","b2b4","c5b4"], aliases:["evans accepted"] },
   { ko:"이탈리안: 트랙슬러 카운터어택", en:"Italian Game: Two Knights, Traxler Counterattack", eco:"C57", uci:["e2e4","e7e5","g1f3","b8c6","f1c4","g8f6","f3g5","f8c5"], aliases:["traxler","wilkes-barre","트랙슬러"] },
-  { ko:"이탈리안: 프라이드 리버 어택", en:"Italian Game: Two Knights, Fried Liver Attack", eco:"C57", uci:["e2e4","e7e5","g1f3","b8c6","f1c4","g8f6","f3g5","d7d5","e4d5","f6d5","g5f7"], aliases:["fried liver","프라이드 리버"] },
+  { ko:"이탈리안: 나이트 어택", en:"Italian Game: Two Knights, Knight Attack", eco:"C57", uci:["e2e4","e7e5","g1f3","b8c6","f1c4","g8f6","f3g5"], aliases:["knight attack","나이트 어택","ng5","two knights ng5"] },
 
   // === 시실리안 나이도프 사이드라인 ===
   { ko:"나이도프: 잉글리시 어택", en:"Sicilian: Najdorf, English Attack", eco:"B90", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","a7a6","c1e3"], aliases:["english attack","잉글리시 어택"] },
-  { ko:"나이도프: 폴루가옙스키", en:"Sicilian: Najdorf, Poisoned Pawn (Polugaevsky)", eco:"B96", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","a7a6","c1g5","e7e6","f2f4","b7b5"], aliases:["polugaevsky","폴루가옙스키"] },
   { ko:"나이도프: 페르난데즈 어택", en:"Sicilian: Najdorf, Main Line", eco:"B92", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","a7a6","f1e2"], aliases:["najdorf main","Be2 najdorf"] },
   { ko:"나이도프: 소조인-라우저", en:"Sicilian: Najdorf, Sozin Variation", eco:"B86", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","a7a6","f1c4"], aliases:["sozin","fischer-sozin","소조인"] },
   { ko:"나이도프: 6.f3 어택", en:"Sicilian: Najdorf, 6.f3", eco:"B90", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","a7a6","f2f3"], aliases:["najdorf f3"] },
@@ -1521,7 +1692,6 @@ const OPENINGS = [
   { ko:"드래곤: 유고슬라브 어택", en:"Sicilian: Dragon, Yugoslav Attack", eco:"B76", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","g7g6","c1e3","f8g7","f2f3"], aliases:["yugoslav","유고슬라브"] },
   { ko:"드래곤: 클래시컬 변형", en:"Sicilian: Dragon, Classical Variation", eco:"B72", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","g7g6","f1e2"], aliases:["classical dragon"] },
   { ko:"액드래곤: 마로치 바인드", en:"Sicilian: Accelerated Dragon, Maroczy Bind", eco:"B36", uci:["e2e4","c7c5","g1f3","b8c6","d2d4","c5d4","f3d4","g7g6","c2c4"], aliases:["maroczy","마로치"] },
-  { ko:"셰베닝겐: 케레스 어택", en:"Sicilian: Scheveningen, Keres Attack", eco:"B81", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","e7e6","g2g4"], aliases:["keres attack","케레스"] },
   { ko:"셰베닝겐: 잉글리시 어택", en:"Sicilian: Scheveningen, English Attack", eco:"B80", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","e7e6","c1e3"], aliases:["scheveningen english"] },
   { ko:"라우저 어택", en:"Sicilian: Richter-Rauzer Attack", eco:"B60", uci:["e2e4","c7c5","g1f3","d7d6","d2d4","c5d4","f3d4","g8f6","b1c3","b8c6","c1g5"], aliases:["rauzer","richter-rauzer","라우저"] },
 
@@ -1714,7 +1884,8 @@ function validateUciSequence(uciArr) {
 const TIERLIST = {
   results: null,        // [{op, white, draws, black}]
   fetching: false,
-  cacheKey: () => `tl::${[...state.speeds].sort().join(',')}::${[...state.ratings].sort().join(',')}`,
+  // 캐시 키: speeds + ratings + 시드 개수. 시드 늘어나면 자동으로 새 캐시.
+  cacheKey: () => `tl::v${OPENINGS.length}::${[...state.speeds].sort().join(',')}::${[...state.ratings].sort().join(',')}`,
 };
 
 function loadTierlistCache() {
@@ -1725,6 +1896,20 @@ function loadTierlistCache() {
     if (Date.now() - obj.ts > 24 * 3600 * 1000) return null;  // 24h
     return obj;
   } catch { return null; }
+}
+
+// 옛 형식 / 다른 시드 버전 캐시 정리 (페이지 로드 시 1회)
+function purgeOldTierlistCaches() {
+  try {
+    const currentKey = TIERLIST.cacheKey();
+    const toDelete = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('tl::') && k !== currentKey) toDelete.push(k);
+    }
+    toDelete.forEach(k => localStorage.removeItem(k));
+    if (toDelete.length > 0) console.log('[Tierlist] purged', toDelete.length, 'old cache entries');
+  } catch (e) {}
 }
 function saveTierlistCache(results) {
   try {
@@ -1831,13 +2016,12 @@ function classifyForTier(white, draws, black, op) {
 function renderTierlist() {
   const grid = document.getElementById('tl-grid');
   const titleEl = document.getElementById('tl-title-side');
-  if (state.side === 'auto') titleEl.textContent = '자동 시점 티어리스트';
+  if (state.side === 'auto') titleEl.textContent = '전체 티어리스트';
   else titleEl.textContent = (state.side === 'white' ? '백' : '흑') + ' 시점 티어리스트';
   document.getElementById('tl-subtitle').textContent =
-    (state.side === 'auto'
-      ? '각 오프닝의 마지막 둔 색 시점으로 평가'
-      : `${state.side === 'white' ? '백' : '흑'}이 마지막에 둔 라인만 · 그 시점에서 평가`)
-    + ' · Bayesian-adjusted';
+    state.side === 'auto'
+      ? '백이 둔 라인은 백 입장, 흑이 둔 라인은 흑 입장에서 평가'
+      : `${state.side === 'white' ? '백' : '흑'}이 마지막에 둔 라인만`;
 
   if (!TIERLIST.results || TIERLIST.results.length === 0) {
     if (TIERLIST.fetching) {
@@ -2061,7 +2245,11 @@ function effectiveSideNextMove(plyCount) {
 // 호환성: 기존 effectiveSide는 포지션 시점으로 alias
 const effectiveSide = effectiveSidePosition;
 
-const PIECES = { K:'♚', Q:'♛', R:'♜', B:'♝', N:'♞', P:'♟' };
+// \uFE0E (Variation Selector 15) = 텍스트 스타일 강제. iOS Safari가 이모지로 렌더하는 걸 막음
+const PIECES = {
+  K: '\u265A\uFE0E', Q: '\u265B\uFE0E', R: '\u265C\uFE0E',
+  B: '\u265D\uFE0E', N: '\u265E\uFE0E', P: '\u265F\uFE0E'
+};
 
 // ============== BOARD ==============
 function renderBoard() {
@@ -2349,14 +2537,14 @@ function renderRightPanel() {
       pt.style.display = 'block';
       pt.className = 'persp-tier tier-' + tier.key;
       pt.style.borderLeft = `3px solid var(--tier-${tier.key})`;
-      document.getElementById('pt-side').textContent = (eff === 'white' ? '백' : '흑') + (state.side === 'auto' ? ' · auto' : '');
+      document.getElementById('pt-side').textContent = (eff === 'white' ? '백' : '흑') + ' 시점';
       document.getElementById('pt-label-val').textContent = tier.label;
       document.getElementById('pt-label-val').style.color = `var(--tier-${tier.key})`;
-      document.getElementById('pt-pct').textContent = tier.pct.toFixed(1) + '% (보정 후 시점기준)';
+      document.getElementById('pt-pct').textContent = tier.pct.toFixed(1) + '% 승률';
     } else {
       pt.style.display = 'block';
       pt.style.borderLeft = '3px solid var(--text-mute)';
-      document.getElementById('pt-side').textContent = (eff === 'white' ? '백' : '흑') + (state.side === 'auto' ? ' · auto' : '');
+      document.getElementById('pt-side').textContent = (eff === 'white' ? '백' : '흑') + ' 시점';
       document.getElementById('pt-label-val').textContent = '샘플↓';
       document.getElementById('pt-label-val').style.color = 'var(--text-mute)';
       document.getElementById('pt-pct').textContent = `${total.toLocaleString()} < ${state.minGames}`;
@@ -2459,7 +2647,7 @@ function updateSideIndicator() {
   if (state.side === 'auto') {
     const ply = state.history.length;
     if (ply === 0) {
-      ind.innerHTML = 'auto · 시작 → <span style="color:#f8f3e6;">백</span> 차례';
+      ind.innerHTML = '전체 — 시작은 <span style="color:#f8f3e6;">백</span> 차례';
     } else {
       const lastSan = state.history[ply - 1].san;
       const posSide = effectiveSidePosition(ply);
@@ -2468,10 +2656,10 @@ function updateSideIndicator() {
       const nextKo = nextSide === 'white' ? '백' : '흑';
       const posColor = posSide === 'white' ? '#f8f3e6' : '#aaa';
       const nextColor = nextSide === 'white' ? '#f8f3e6' : '#aaa';
-      ind.innerHTML = `auto · <span style="color:${posColor};">${posKo}</span> ${lastSan} 둠 → <span style="color:${nextColor};">${nextKo}</span> 응수 차례`;
+      ind.innerHTML = `<span style="color:${posColor};">${posKo}</span> ${lastSan} 둠 → <span style="color:${nextColor};">${nextKo}</span> 차례`;
     }
   } else {
-    ind.textContent = `강제 ${state.side === 'white' ? '백' : '흑'} 시점`;
+    ind.textContent = `${state.side === 'white' ? '백' : '흑'} 시점만 보기`;
   }
 }
 
@@ -2512,11 +2700,6 @@ document.getElementById('rating-all').onclick = () => {
 document.getElementById('min-games').oninput = (e) => {
   state.minGames = +e.target.value;
   document.getElementById('min-games-val').textContent = e.target.value;
-  renderRightPanel();
-  if (TIERLIST.results) renderTierlist();
-};
-document.getElementById('bayesian').onchange = (e) => {
-  state.bayesian = e.target.checked;
   renderRightPanel();
   if (TIERLIST.results) renderTierlist();
 };
@@ -2771,6 +2954,7 @@ function importUserOpenings(file) {
 // ============== INIT ==============
 loadUserOpenings();
 validateAllOpenings();
+purgeOldTierlistCaches();
 buildRatings();
 buildSpeeds();
 refreshUserListSummary();
@@ -2891,8 +3075,6 @@ document.addEventListener('click', (e) => {
 
 renderAll();
 fetchAndRender();
-
-// ============== MOBILE UI ==============
 const sidebarEl = document.querySelector('.sidebar');
 const backdropEl = document.getElementById('drawer-backdrop');
 const hamburgerEl = document.getElementById('m-hamburger');
@@ -2941,6 +3123,9 @@ sidebarEl.addEventListener('click', (e) => {
 window.addEventListener('resize', () => {
   if (window.innerWidth > 900) closeDrawer();
 });
+
+// 페이지 로드 시 티어리스트 모드로 진입 (자동 수집 트리거)
+switchMode('tierlist');
 </script>
 </body>
 </html>
