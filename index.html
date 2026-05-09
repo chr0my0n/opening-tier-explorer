@@ -761,6 +761,45 @@ input[type="range"]::-moz-range-thumb {
   background: rgba(245, 184, 0, 0.32);
   pointer-events: none;
 }
+.sq.selected::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(245, 184, 0, 0.55);
+  pointer-events: none;
+  z-index: 1;
+}
+.sq.legal-move::after {
+  content: '';
+  position: absolute;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: rgba(20, 20, 20, 0.35);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+}
+.sq.legal-capture::after {
+  content: '';
+  position: absolute;
+  inset: 4%;
+  border: 4px solid rgba(20, 20, 20, 0.45);
+  border-radius: 50%;
+  background: transparent;
+  pointer-events: none;
+  z-index: 2;
+}
+.sq.dragging {
+  opacity: 0.4;
+}
+.sq {
+  cursor: pointer;
+}
+.sq.no-piece {
+  cursor: default;
+}
 .coord {
   position: absolute;
   font-size: 8px;
@@ -2227,6 +2266,7 @@ const state = {
   game: new Chess(),
   cache: new Map(),
   lastData: null,
+  selectedSq: null,  // 보드에서 클릭으로 선택된 말의 칸 (예: 'e2')
 };
 
 // 포지션 평가용: 마지막 두어진 수의 색 (오프닝 라인 자체의 평가)
@@ -2256,11 +2296,10 @@ function renderBoard() {
   const board = document.getElementById('board');
   board.innerHTML = '';
   const fen = state.game.fen().split(' ')[0];
-  const rows = fen.split('/'); // rank 8 first
+  const rows = fen.split('/');
   const last = state.history[state.history.length - 1];
   const lastSqs = last ? [last.uci.slice(0,2), last.uci.slice(2,4)] : [];
 
-  // expand rows into 8x8 array indexed [rank8..rank1][fileA..fileH]
   const grid = rows.map(r => {
     const arr = [];
     for (const ch of r) {
@@ -2273,9 +2312,16 @@ function renderBoard() {
   const rankOrder = state.flipped ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
   const fileOrder = state.flipped ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
 
+  // 선택된 말의 합법 수 미리 계산
+  let legalTargets = new Map();  // to-square → move object
+  if (state.selectedSq) {
+    const moves = state.game.moves({ square: state.selectedSq, verbose: true });
+    for (const m of moves) legalTargets.set(m.to, m);
+  }
+
   for (let ri = 0; ri < 8; ri++) {
     for (let fi = 0; fi < 8; fi++) {
-      const realRank = rankOrder[ri]; // 0=rank8, 7=rank1
+      const realRank = rankOrder[ri];
       const realFile = fileOrder[fi];
       const rankNum = 8 - realRank;
       const fileChar = String.fromCharCode(97 + realFile);
@@ -2285,13 +2331,21 @@ function renderBoard() {
       const div = document.createElement('div');
       const isLight = (realRank + realFile) % 2 === 0;
       div.className = 'sq ' + (isLight ? 'light' : 'dark');
+      div.dataset.sq = sqName;
+      if (!piece) div.classList.add('no-piece');
       if (lastSqs.includes(sqName)) div.classList.add('last-move');
+      if (state.selectedSq === sqName) div.classList.add('selected');
+      if (legalTargets.has(sqName)) {
+        // 캡처면 링, 빈 칸이면 점
+        if (piece || legalTargets.get(sqName).flags.includes('e')) div.classList.add('legal-capture');
+        else div.classList.add('legal-move');
+      }
       if (piece) {
         const color = piece === piece.toUpperCase() ? 'w' : 'b';
         div.textContent = PIECES[piece.toUpperCase()];
         div.classList.add('piece-' + color);
+        div.draggable = true;
       }
-      // coords
       if (fi === 0) {
         const c = document.createElement('span');
         c.className = 'coord rank';
@@ -2336,6 +2390,63 @@ function renderMoveList() {
 function rebuildGame() {
   state.game = new Chess();
   for (const m of state.history) state.game.move(m.san);
+}
+
+// 보드에서 직접 둔 수 처리 — from/to 받아 합법이면 history에 추가하고 통계 갱신
+function tryMoveOnBoard(from, to) {
+  // 프로모션 처리: 폰이 마지막 랭크로 가면 자동으로 퀸 (간단한 default)
+  const piece = state.game.get(from);
+  let promotion;
+  if (piece && piece.type === 'p') {
+    if ((piece.color === 'w' && to[1] === '8') || (piece.color === 'b' && to[1] === '1')) {
+      promotion = 'q';  // 자동 퀸 승급. 추후 모달로 선택지 줄 수 있음
+    }
+  }
+  const move = state.game.move({ from, to, promotion });
+  if (!move) return false;
+  const uci = move.from + move.to + (move.promotion || '');
+  state.history.push({ san: move.san, uci, fenAfter: state.game.fen() });
+  state.selectedSq = null;
+  renderAll();
+  fetchAndRender();
+  return true;
+}
+
+// 칸 클릭 처리: 선택 → 이동 → 취소 흐름
+function onSquareClick(sqName) {
+  const piece = state.game.get(sqName);
+  const turn = state.game.turn();  // 'w' or 'b'
+
+  // 이미 선택돼있으면: 같은 칸 클릭은 취소, 다른 내 말 클릭은 재선택, 합법 칸 클릭은 이동
+  if (state.selectedSq) {
+    if (state.selectedSq === sqName) {
+      state.selectedSq = null;
+      renderBoard();
+      return;
+    }
+    // 합법 수인지 체크
+    const moves = state.game.moves({ square: state.selectedSq, verbose: true });
+    if (moves.some(m => m.to === sqName)) {
+      tryMoveOnBoard(state.selectedSq, sqName);
+      return;
+    }
+    // 다른 내 말이면 재선택
+    if (piece && piece.color === turn) {
+      state.selectedSq = sqName;
+      renderBoard();
+      return;
+    }
+    // 그 외엔 선택 해제
+    state.selectedSq = null;
+    renderBoard();
+    return;
+  }
+
+  // 선택 안 돼있으면: 자기 차례 말이면 선택
+  if (piece && piece.color === turn) {
+    state.selectedSq = sqName;
+    renderBoard();
+  }
 }
 
 // ============== API ==============
@@ -2958,6 +3069,58 @@ purgeOldTierlistCaches();
 buildRatings();
 buildSpeeds();
 refreshUserListSummary();
+
+// 보드 인터랙션: 클릭 (이벤트 위임)
+document.getElementById('board').addEventListener('click', (e) => {
+  const sq = e.target.closest('.sq');
+  if (!sq || !sq.dataset.sq) return;
+  onSquareClick(sq.dataset.sq);
+});
+
+// 보드 드래그 — HTML5 drag/drop (PC)
+let dragFrom = null;
+const boardEl = document.getElementById('board');
+boardEl.addEventListener('dragstart', (e) => {
+  const sq = e.target.closest('.sq');
+  if (!sq || !sq.dataset.sq) return;
+  const piece = state.game.get(sq.dataset.sq);
+  const turn = state.game.turn();
+  if (!piece || piece.color !== turn) {
+    e.preventDefault();
+    return;
+  }
+  dragFrom = sq.dataset.sq;
+  state.selectedSq = dragFrom;
+  sq.classList.add('dragging');
+  renderBoard();
+  // 드래그 이미지 — 기본 사용 (브라우저가 알아서)
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', dragFrom);
+});
+boardEl.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+});
+boardEl.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const sq = e.target.closest('.sq');
+  if (!sq || !sq.dataset.sq || !dragFrom) {
+    dragFrom = null;
+    state.selectedSq = null;
+    renderBoard();
+    return;
+  }
+  const to = sq.dataset.sq;
+  if (dragFrom !== to) tryMoveOnBoard(dragFrom, to);
+  else { state.selectedSq = null; renderBoard(); }
+  dragFrom = null;
+});
+boardEl.addEventListener('dragend', () => {
+  dragFrom = null;
+  document.querySelectorAll('.sq.dragging').forEach(el => el.classList.remove('dragging'));
+});
+
+// 모바일 터치: 클릭 핸들러로 충분 (tap = click 자동 변환)
 
 // User openings UI wiring
 document.getElementById('btn-add-line').onclick = openAddModal;
